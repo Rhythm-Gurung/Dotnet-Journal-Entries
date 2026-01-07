@@ -1,0 +1,12 @@
+{
+  "name": "journalstart",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:css": "tailwindcss -i ./wwwroot/css/tailwind-input.css -o ./wwwroot/css/tailwind.css --watch",
+    "build:css": "tailwindcss -i ./wwwroot/css/tailwind-input.css -o ./wwwroot/css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.11"
+  }
+}

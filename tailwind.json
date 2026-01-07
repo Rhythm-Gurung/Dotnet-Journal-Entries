@@ -1,0 +1,11 @@
+{
+  "InputFile": "wwwroot/css/tailwind-input.css",
+  "OutputFile": "wwwroot/css/tailwind.css",
+  "Minify": true,
+  "Content": [
+    "wwwroot/index.html",
+    "wwwroot/**/*.html",
+    "Components/**/*.{razor,cshtml,html}",
+    "**/*.razor"
+  ]
+}

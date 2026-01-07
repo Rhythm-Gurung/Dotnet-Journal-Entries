@@ -1,0 +1,208 @@
+@using Markdig
+@inject IJSRuntime JS
+
+<div class="space-y-3">
+    <!-- Toolbar -->
+    <div class="flex flex-wrap gap-1 rounded border border-slate-200 bg-slate-50 p-2">
+        <button class="rounded border px-2 py-1 text-xs font-bold @GetButtonClass(_isBold)"
+            @onclick='() => Execute("bold")' disabled="@Disabled">B</button>
+        <button class="rounded border px-2 py-1 text-xs italic @GetButtonClass(_isItalic)"
+            @onclick='() => Execute("italic")' disabled="@Disabled">I</button>
+        <button class="rounded border px-2 py-1 text-xs @GetButtonClass(_blockFormat == "h1")"
+            @onclick='() => ExecuteBlock("formatBlock", "h1")' disabled="@Disabled">H1</button>
+        <button class="rounded border px-2 py-1 text-xs @GetButtonClass(_blockFormat == "h2")"
+            @onclick='() => ExecuteBlock("formatBlock", "h2")' disabled="@Disabled">H2</button>
+        <button class="rounded border px-2 py-1 text-xs @GetButtonClass(_blockFormat == "ul")"
+            @onclick='() => Execute("insertUnorderedList")' disabled="@Disabled">• List</button>
+        <button class="rounded border px-2 py-1 text-xs @GetButtonClass(_blockFormat == "ol")"
+            @onclick='() => Execute("insertOrderedList")' disabled="@Disabled">1. List</button>
+        <button class="rounded border px-2 py-1 text-xs hover:bg-slate-100 bg-white" @onclick="InsertLink"
+            disabled="@Disabled">🔗 Link</button>
+    </div>
+
+    <!-- Editor with styles for headings, lists, and links -->
+    <style>
+        .journal-editor h1 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .journal-editor h2 {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .journal-editor h3 {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .journal-editor ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin: 0.5rem 0;
+        }
+
+        .journal-editor ol {
+            list-style-type: decimal;
+            padding-left: 1.5rem;
+            margin: 0.5rem 0;
+        }
+
+        .journal-editor li {
+            margin: 0.25rem 0;
+        }
+
+        .journal-editor a {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+    </style>
+    <div class="journal-editor min-h-[180px] rounded border border-slate-300 bg-white p-3 text-sm focus-within:border-blue-400 focus-within:outline-none"
+        contenteditable="true" @ref="_editor" @oninput="HandleInput" @onblur="HandleInput"
+        @onmouseup="UpdateToolbarState" @onkeyup="UpdateToolbarState" data-placeholder="Start writing..."></div>
+
+    <!-- Preview -->
+    <div class="rounded border border-slate-200 bg-slate-50 p-3">
+        <p class="mb-2 text-xs font-medium text-slate-500">Preview:</p>
+        <div class="prose prose-sm max-w-none text-slate-700">@((MarkupString)Rendered)</div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    private ElementReference _editor;
+    private IJSObjectReference? _module;
+    private MarkdownPipeline _pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
+    private string _lastHtml = string.Empty;
+
+    // Active state tracking
+    private bool _isBold;
+    private bool _isItalic;
+    private string _blockFormat = "p";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/markdownEditor.js");
+            await SetHtml(Value);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Value != _lastHtml && _module is not null)
+        {
+            await SetHtml(Value);
+        }
+    }
+
+    private async Task Execute(string command)
+    {
+        if (Disabled || _module is null)
+        {
+            return;
+        }
+
+        await _module.InvokeVoidAsync("exec", _editor, command, null);
+        await SyncFromDom();
+        await UpdateToolbarState();
+    }
+
+    private async Task ExecuteBlock(string command, string value)
+    {
+        if (Disabled || _module is null)
+        {
+            return;
+        }
+
+        await _module.InvokeVoidAsync("exec", _editor, command, value);
+        await SyncFromDom();
+        await UpdateToolbarState();
+    }
+
+    private async Task InsertLink()
+    {
+        if (Disabled || _module is null)
+        {
+            return;
+        }
+
+        var href = await JS.InvokeAsync<string?>("prompt", "Enter URL", "https://");
+        if (string.IsNullOrWhiteSpace(href))
+        {
+            return;
+        }
+
+        await _module.InvokeVoidAsync("exec", _editor, "createLink", href);
+        await SyncFromDom();
+    }
+
+    private async Task HandleInput()
+    {
+        await SyncFromDom();
+        await UpdateToolbarState();
+    }
+
+    private async Task UpdateToolbarState()
+    {
+        if (_module is null) return;
+
+        try
+        {
+            _isBold = await _module.InvokeAsync<bool>("queryCommandState", "bold");
+            _isItalic = await _module.InvokeAsync<bool>("queryCommandState", "italic");
+            _blockFormat = await _module.InvokeAsync<string>("queryBlockFormat");
+            StateHasChanged();
+        }
+        catch
+        {
+            // Ignore errors during toolbar state check
+        }
+    }
+
+    private string GetButtonClass(bool isActive) => isActive
+    ? "bg-blue-100 border-blue-400 text-blue-700"
+    : "bg-white hover:bg-slate-100";
+
+    private async Task SyncFromDom()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        var html = await _module.InvokeAsync<string>("getHtml", _editor);
+        _lastHtml = html;
+        Value = html;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    private async Task SetHtml(string? html)
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        _lastHtml = html ?? string.Empty;
+        await _module.InvokeVoidAsync("setHtml", _editor, _lastHtml);
+    }
+
+    private string Rendered => Markdown.ToHtml(Value ?? string.Empty, _pipeline);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.DisposeAsync();
+        }
+    }
+}
