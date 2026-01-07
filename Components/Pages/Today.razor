@@ -41,65 +41,40 @@
         }
     </div>
 
-    <div class="grid gap-4 lg:grid-cols-3">
-        <div class="lg:col-span-2 space-y-3 rounded-lg border border-slate-200 bg-white p-4">
-            <div class="flex items-center justify-between">
+    <div class="space-y-4">
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <div class="flex items-center justify-between mb-3">
                 <h2 class="font-semibold text-slate-700">Write your thoughts</h2>
                 <span class="text-xs text-slate-400">@WordCount words</span>
             </div>
             <MarkdownEditor @bind-Value="Content" Disabled="@_isBusy" />
         </div>
 
-        <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-            <div>
-                <label class="text-sm font-medium text-slate-600">How are you feeling?</label>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                    @foreach (var mood in MoodOptions)
-                    {
-                        var isActive = PrimaryMood == mood.Id;
-                        <button class="rounded border px-2 py-1 text-sm @GetMoodClasses(isActive)"
-                            @onclick="() => SetPrimaryMood(mood.Id)">
-                            @mood.Emoji @mood.Label
-                        </button>
-                    }
-                </div>
-            </div>
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <MoodSelector @bind-PrimaryMood="PrimaryMood" @bind-SecondaryMoods="SecondaryMoods" />
+        </div>
 
-            <div>
-                <label class="text-sm font-medium text-slate-600">Also feeling... (optional)</label>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                    @foreach (var mood in MoodOptions)
-                    {
-                        var isActive = SecondaryMoods.Contains(mood.Id);
-                        <button class="rounded border px-2 py-1 text-sm @GetMoodClasses(isActive)"
-                            @onclick="() => ToggleSecondaryMood(mood.Id)">
-                            @mood.Emoji @mood.Label
-                        </button>
-                    }
-                </div>
+        <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <label class="text-sm font-medium text-slate-600">Tags</label>
+            <div class="mt-2 flex gap-2">
+                <input
+                    class="flex-1 rounded border border-slate-300 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
+                    placeholder="Add a tag..." @bind="NewTag" @bind:event="oninput" @onkeydown="OnTagKeyDown" />
+                <button class="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 disabled:bg-blue-300"
+                    @onclick="AddTag" disabled="@string.IsNullOrWhiteSpace(NewTag)">Add</button>
             </div>
-
-            <div>
-                <label class="text-sm font-medium text-slate-600">Tags</label>
-                <div class="mt-2 flex gap-2">
-                    <input class="flex-1 rounded border border-slate-300 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
-                        placeholder="Add a tag..." @bind="NewTag" @bind:event="oninput" @onkeydown="OnTagKeyDown" />
-                    <button class="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 disabled:bg-blue-300"
-                        @onclick="AddTag" disabled="@string.IsNullOrWhiteSpace(NewTag)">Add</button>
-                </div>
-                <div class="mt-2 flex flex-wrap gap-1">
-                    @if (!Tags.Any())
-                    {
-                        <span class="text-xs text-slate-400">No tags yet</span>
-                    }
-                    @foreach (var tag in Tags)
-                    {
-                        <span class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">
-                            @tag
-                            <button class="ml-1 text-slate-400 hover:text-slate-600" @onclick="() => RemoveTag(tag)">×</button>
-                        </span>
-                    }
-                </div>
+            <div class="mt-2 flex flex-wrap gap-1">
+                @if (!Tags.Any())
+                {
+                    <span class="text-xs text-slate-400">No tags yet</span>
+                }
+                @foreach (var tag in Tags)
+                {
+                    <span class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                        @tag
+                        <button class="ml-1 text-slate-400 hover:text-slate-600" @onclick="() => RemoveTag(tag)">×</button>
+                    </span>
+                }
             </div>
         </div>
     </div>
@@ -126,8 +101,8 @@
 @code {
     private DateOnly SelectedDate = DateOnly.FromDateTime(DateTime.Now);
     private string Content = string.Empty;
-    private string? PrimaryMood;
-    private List<string> SecondaryMoods = new();
+    private Mood? PrimaryMood;
+    private List<Mood> SecondaryMoods = new();
     private List<string> Tags = new();
     private string NewTag = string.Empty;
     private DateTime? CreatedAtUtc;
@@ -152,8 +127,8 @@
         {
             _loaded = entry;
             Content = entry.Content;
-            PrimaryMood = entry.PrimaryMood;
-            SecondaryMoods = entry.SecondaryMoods.ToList();
+            PrimaryMood = MoodCatalog.Get(entry.PrimaryMood);
+            SecondaryMoods = entry.SecondaryMoods.Select(id => MoodCatalog.Get(id)).Where(m => m is not null).Cast<Mood>().ToList();
             Tags = entry.Tags.ToList();
             CreatedAtUtc = entry.CreatedAt;
             UpdatedAtUtc = entry.UpdatedAt;
@@ -176,7 +151,7 @@
 
     private async Task SaveAsync()
     {
-        if (string.IsNullOrWhiteSpace(Content) || string.IsNullOrWhiteSpace(PrimaryMood))
+        if (string.IsNullOrWhiteSpace(Content) || PrimaryMood is null)
         {
             StatusMessage = "Add text and select a primary mood before saving.";
             return;
@@ -185,12 +160,13 @@
         _isBusy = true;
         StatusMessage = string.Empty;
 
-        var saved = await JournalService.UpsertEntryAsync(SelectedDate, Content.Trim(), PrimaryMood, SecondaryMoods.ToList(),
+        var saved = await JournalService.UpsertEntryAsync(SelectedDate, Content.Trim(), PrimaryMood.Id, SecondaryMoods.Select(m
+        => m.Id).ToList(),
         Tags.ToList());
         _loaded = saved;
         Content = saved.Content;
-        PrimaryMood = saved.PrimaryMood;
-        SecondaryMoods = saved.SecondaryMoods.ToList();
+        PrimaryMood = MoodCatalog.Get(saved.PrimaryMood);
+        SecondaryMoods = saved.SecondaryMoods.Select(id => MoodCatalog.Get(id)).Where(m => m is not null).Cast<Mood>().ToList();
         Tags = saved.Tags.ToList();
         CreatedAtUtc = saved.CreatedAt;
         UpdatedAtUtc = saved.UpdatedAt;
@@ -241,7 +217,7 @@
 
     private bool IsToday => SelectedDate == DateOnly.FromDateTime(DateTime.Now);
 
-    private bool CanSave => !string.IsNullOrWhiteSpace(Content) && !string.IsNullOrWhiteSpace(PrimaryMood) && HasChanges;
+    private bool CanSave => !string.IsNullOrWhiteSpace(Content) && PrimaryMood is not null && HasChanges;
 
     private bool HasChanges
     {
@@ -249,32 +225,15 @@
         {
             if (_loaded is null)
             {
-                return !string.IsNullOrWhiteSpace(Content) || !string.IsNullOrWhiteSpace(PrimaryMood) || SecondaryMoods.Any() ||
+                return !string.IsNullOrWhiteSpace(Content) || PrimaryMood is not null || SecondaryMoods.Any() ||
                 Tags.Any();
             }
 
             var contentChanged = !string.Equals(Content, _loaded.Content, StringComparison.Ordinal);
-            var primaryChanged = !string.Equals(PrimaryMood, _loaded.PrimaryMood, StringComparison.Ordinal);
-            var secondaryChanged = !SecondaryMoods.SequenceEqual(_loaded.SecondaryMoods);
+            var primaryChanged = !string.Equals(PrimaryMood?.Id, _loaded.PrimaryMood, StringComparison.Ordinal);
+            var secondaryChanged = !SecondaryMoods.Select(m => m.Id).SequenceEqual(_loaded.SecondaryMoods);
             var tagsChanged = !Tags.SequenceEqual(_loaded.Tags);
             return contentChanged || primaryChanged || secondaryChanged || tagsChanged;
-        }
-    }
-
-    private void SetPrimaryMood(string id)
-    {
-        PrimaryMood = id;
-    }
-
-    private void ToggleSecondaryMood(string id)
-    {
-        if (SecondaryMoods.Contains(id))
-        {
-            SecondaryMoods.Remove(id);
-        }
-        else
-        {
-            SecondaryMoods.Add(id);
         }
     }
 
@@ -306,22 +265,4 @@
             AddTag();
         }
     }
-
-    private string GetMoodClasses(bool active) => active
-    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-    : "border-slate-200 bg-white text-slate-700";
-
-    private record MoodOption(string Id, string Label, string Emoji);
-
-    private List<MoodOption> MoodOptions { get; } = new()
-{
-new MoodOption("calm", "Calm", "😌"),
-new MoodOption("happy", "Happy", "😊"),
-new MoodOption("excited", "Excited", "🤩"),
-new MoodOption("focused", "Focused", "🎯"),
-new MoodOption("tired", "Tired", "😴"),
-new MoodOption("anxious", "Anxious", "😬"),
-new MoodOption("sad", "Sad", "😔"),
-new MoodOption("grateful", "Grateful", "🙏"),
-};
 }
