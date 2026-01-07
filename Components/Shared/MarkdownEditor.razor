@@ -4,66 +4,26 @@
 <div class="space-y-3">
     <!-- Toolbar -->
     <div class="flex flex-wrap gap-1 rounded border border-slate-200 bg-slate-50 p-2">
-        <button class="rounded border px-2 py-1 text-xs font-bold @GetButtonClass(_isBold)"
+        <button class="rounded border bg-white px-2 py-1 text-xs font-bold hover:bg-slate-100"
             @onclick='() => Execute("bold")' disabled="@Disabled">B</button>
-        <button class="rounded border px-2 py-1 text-xs italic @GetButtonClass(_isItalic)"
+        <button class="rounded border bg-white px-2 py-1 text-xs italic hover:bg-slate-100"
             @onclick='() => Execute("italic")' disabled="@Disabled">I</button>
-        <button class="rounded border px-2 py-1 text-xs @GetButtonClass(_blockFormat == "h1")"
-            @onclick='() => ExecuteBlock("formatBlock", "h1")' disabled="@Disabled">H1</button>
-        <button class="rounded border px-2 py-1 text-xs @GetButtonClass(_blockFormat == "h2")"
+        <button class="rounded border bg-white px-2 py-1 text-xs hover:bg-slate-100"
+            @onclick='() => ExecuteBlock("formatBlock", "2xl")' disabled="@Disabled">H1</button>
+        <button class="rounded border bg-white px-2 py-1 text-xs hover:bg-slate-100"
             @onclick='() => ExecuteBlock("formatBlock", "h2")' disabled="@Disabled">H2</button>
-        <button class="rounded border px-2 py-1 text-xs @GetButtonClass(_blockFormat == "ul")"
+        <button class="rounded border bg-white px-2 py-1 text-xs hover:bg-slate-100"
             @onclick='() => Execute("insertUnorderedList")' disabled="@Disabled">• List</button>
-        <button class="rounded border px-2 py-1 text-xs @GetButtonClass(_blockFormat == "ol")"
+        <button class="rounded border bg-white px-2 py-1 text-xs hover:bg-slate-100"
             @onclick='() => Execute("insertOrderedList")' disabled="@Disabled">1. List</button>
-        <button class="rounded border px-2 py-1 text-xs hover:bg-slate-100 bg-white" @onclick="InsertLink"
+        <button class="rounded border bg-white px-2 py-1 text-xs hover:bg-slate-100" @onclick="InsertLink"
             disabled="@Disabled">🔗 Link</button>
     </div>
 
-    <!-- Editor with styles for headings, lists, and links -->
-    <style>
-        .journal-editor h1 {
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin: 0.5rem 0;
-        }
-
-        .journal-editor h2 {
-            font-size: 1.25rem;
-            font-weight: bold;
-            margin: 0.5rem 0;
-        }
-
-        .journal-editor h3 {
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin: 0.5rem 0;
-        }
-
-        .journal-editor ul {
-            list-style-type: disc;
-            padding-left: 1.5rem;
-            margin: 0.5rem 0;
-        }
-
-        .journal-editor ol {
-            list-style-type: decimal;
-            padding-left: 1.5rem;
-            margin: 0.5rem 0;
-        }
-
-        .journal-editor li {
-            margin: 0.25rem 0;
-        }
-
-        .journal-editor a {
-            color: #2563eb;
-            text-decoration: underline;
-        }
-    </style>
-    <div class="journal-editor min-h-[180px] rounded border border-slate-300 bg-white p-3 text-sm focus-within:border-blue-400 focus-within:outline-none"
+    <!-- Editor -->
+    <div class="min-h-[180px] rounded border border-slate-300 bg-white p-3 text-sm focus-within:border-blue-400 focus-within:outline-none"
         contenteditable="true" @ref="_editor" @oninput="HandleInput" @onblur="HandleInput"
-        @onmouseup="UpdateToolbarState" @onkeyup="UpdateToolbarState" data-placeholder="Start writing..."></div>
+        data-placeholder="Start writing..."></div>
 
     <!-- Preview -->
     <div class="rounded border border-slate-200 bg-slate-50 p-3">
@@ -81,11 +41,6 @@
     private IJSObjectReference? _module;
     private MarkdownPipeline _pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
     private string _lastHtml = string.Empty;
-
-    // Active state tracking
-    private bool _isBold;
-    private bool _isItalic;
-    private string _blockFormat = "p";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -113,7 +68,6 @@
 
         await _module.InvokeVoidAsync("exec", _editor, command, null);
         await SyncFromDom();
-        await UpdateToolbarState();
     }
 
     private async Task ExecuteBlock(string command, string value)
@@ -125,7 +79,6 @@
 
         await _module.InvokeVoidAsync("exec", _editor, command, value);
         await SyncFromDom();
-        await UpdateToolbarState();
     }
 
     private async Task InsertLink()
@@ -148,29 +101,7 @@
     private async Task HandleInput()
     {
         await SyncFromDom();
-        await UpdateToolbarState();
     }
-
-    private async Task UpdateToolbarState()
-    {
-        if (_module is null) return;
-
-        try
-        {
-            _isBold = await _module.InvokeAsync<bool>("queryCommandState", "bold");
-            _isItalic = await _module.InvokeAsync<bool>("queryCommandState", "italic");
-            _blockFormat = await _module.InvokeAsync<string>("queryBlockFormat");
-            StateHasChanged();
-        }
-        catch
-        {
-            // Ignore errors during toolbar state check
-        }
-    }
-
-    private string GetButtonClass(bool isActive) => isActive
-    ? "bg-blue-100 border-blue-400 text-blue-700"
-    : "bg-white hover:bg-slate-100";
 
     private async Task SyncFromDom()
     {

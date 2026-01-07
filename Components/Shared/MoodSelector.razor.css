@@ -1,0 +1,405 @@
+/* ===== Mood Selector Component Styles ===== */
+
+.mood-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Section Layout */
+.mood-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.secondary-section {
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+    animation: fadeSlideIn 0.3s ease-out;
+}
+
+/* Section Header */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.title-icon {
+    font-size: 1.1rem;
+}
+
+.required-badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #92400e;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.optional-badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+/* ===== Category Tabs ===== */
+.category-tabs {
+    display: flex;
+    gap: 0.35rem;
+    padding: 0.25rem;
+    background: #f8fafc;
+    border-radius: 0.75rem;
+    border: 1px solid #e2e8f0;
+    width: 100%;
+    min-width: 0;
+}
+
+.category-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.5rem 0.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+    color: #64748b;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.category-tab:hover:not(.active) {
+    background: #e2e8f0;
+}
+
+.category-tab .tab-emoji {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.category-tab .tab-label {
+    display: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (min-width: 420px) {
+    .category-tab .tab-label {
+        display: inline;
+    }
+}
+
+/* Category Tab Active States */
+.category-tab.tab-positive.active {
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    color: #166534;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2);
+}
+
+.category-tab.tab-neutral.active {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #92400e;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+}
+
+.category-tab.tab-negative.active {
+    background: linear-gradient(135deg, #ffe4e6, #fecdd3);
+    color: #9f1239;
+    box-shadow: 0 2px 8px rgba(244, 63, 94, 0.2);
+}
+
+/* ===== Mood Grid ===== */
+.mood-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
+}
+
+@media (max-width: 500px) {
+    .mood-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 380px) {
+    .mood-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Mood Buttons */
+.mood-button {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.6rem 0.25rem;
+    border: 2px solid transparent;
+    border-radius: 0.75rem;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.mood-button:hover:not(.selected) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.mood-button .mood-emoji {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.mood-button .mood-name {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: #475569;
+    text-align: center;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.mood-button .selected-check {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    width: 1rem;
+    height: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: bold;
+    background: white;
+    color: inherit;
+    border-radius: 50%;
+}
+
+/* Mood Button Selected States */
+.mood-button.mood-positive.selected {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    border-color: #15803d;
+    color: white;
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.35);
+}
+
+.mood-button.mood-positive.selected .mood-name {
+    color: white;
+}
+
+.mood-button.mood-neutral.selected {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-color: #b45309;
+    color: white;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+}
+
+.mood-button.mood-neutral.selected .mood-name {
+    color: white;
+}
+
+.mood-button.mood-negative.selected {
+    background: linear-gradient(135deg, #f43f5e, #e11d48);
+    border-color: #be123c;
+    color: white;
+    box-shadow: 0 4px 16px rgba(244, 63, 94, 0.35);
+}
+
+.mood-button.mood-negative.selected .mood-name {
+    color: white;
+}
+
+/* ===== Secondary Chips ===== */
+.secondary-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 0.25rem;
+}
+
+.secondary-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    background: #f8fafc;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.secondary-chip:hover:not(.selected):not(.disabled) {
+    background: #e2e8f0;
+    transform: scale(1.02);
+}
+
+.secondary-chip .chip-emoji {
+    font-size: 0.95rem;
+}
+
+.secondary-chip .chip-name {
+    font-weight: 500;
+    color: #475569;
+}
+
+.secondary-chip.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Secondary Chip Selected States */
+.secondary-chip.chip-positive.selected {
+    background: #dcfce7;
+    border-color: #86efac;
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+.secondary-chip.chip-positive.selected .chip-name {
+    color: #166534;
+}
+
+.secondary-chip.chip-neutral.selected {
+    background: #fef3c7;
+    border-color: #fcd34d;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.secondary-chip.chip-neutral.selected .chip-name {
+    color: #92400e;
+}
+
+.secondary-chip.chip-negative.selected {
+    background: #ffe4e6;
+    border-color: #fda4af;
+    box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.2);
+}
+
+.secondary-chip.chip-negative.selected .chip-name {
+    color: #9f1239;
+}
+
+/* ===== Mood Summary ===== */
+.mood-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 1rem;
+    border: 1px solid #e2e8f0;
+    animation: fadeSlideIn 0.3s ease-out;
+}
+
+.summary-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.summary-icon {
+    font-size: 1rem;
+}
+
+.summary-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.summary-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.summary-chip.primary {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.summary-chip .primary-badge {
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.summary-chip.chip-positive {
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    color: #166534;
+}
+
+.summary-chip.chip-neutral {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #92400e;
+}
+
+.summary-chip.chip-negative {
+    background: linear-gradient(135deg, #ffe4e6, #fecdd3);
+    color: #9f1239;
+}
+
+/* ===== Animations ===== */
+@keyframes fadeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

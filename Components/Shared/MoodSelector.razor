@@ -1,0 +1,204 @@
+@using journalstart.Models
+
+<div class="mood-selector">
+    @* Primary Mood Selection *@
+    <div class="mood-section">
+        <div class="section-header">
+            <h3 class="section-title">
+                <span class="title-icon">🎭</span>
+                How are you feeling?
+            </h3>
+            <span class="required-badge">Required</span>
+        </div>
+
+        @* Category Tabs *@
+        <div class="category-tabs">
+            @foreach (var category in Enum.GetValues<MoodCategory>())
+            {
+                var isActive = _activeCategory == category;
+                <button type="button" class="@GetCategoryTabClass(category, isActive)"
+                    @onclick="() => _activeCategory = category">
+                    <span class="tab-emoji">@GetCategoryEmoji(category)</span>
+                    <span class="tab-label">@category.ToString()</span>
+                </button>
+            }
+        </div>
+
+        @* Mood Grid *@
+        <div class="mood-grid">
+            @if (MoodCatalog.ByCategory.TryGetValue(_activeCategory, out var moods))
+            {
+                @foreach (var mood in moods)
+                {
+                    var isSelected = PrimaryMood?.Id == mood.Id;
+                    <button type="button" class="@GetMoodButtonClass(mood, isSelected)"
+                        @onclick="() => SelectPrimaryMood(mood)">
+                        <span class="mood-emoji">@mood.Emoji</span>
+                        <span class="mood-name">@mood.Name</span>
+                    </button>
+                }
+            }
+        </div>
+    </div>
+
+    @* Secondary Moods *@
+    @if (PrimaryMood is not null)
+    {
+        <div class="mood-section secondary-section">
+            <div class="section-header">
+                <h3 class="section-title">
+                    <span class="title-icon">✨</span>
+                    Also feeling...
+                </h3>
+                <span class="optional-badge">Up to 2</span>
+            </div>
+
+            <div class="secondary-chips">
+                @foreach (var mood in MoodCatalog.All.Where(m => m.Id != PrimaryMood?.Id))
+                {
+                    var isSelected = SecondaryMoods.Any(m => m.Id == mood.Id);
+                    var isDisabled = SecondaryMoods.Count >= 2 && !isSelected;
+                    <button type="button" class="@GetSecondaryChipClass(mood, isSelected, isDisabled)" disabled="@isDisabled"
+                        @onclick="() => ToggleSecondaryMood(mood)">
+                        <span class="chip-emoji">@mood.Emoji</span>
+                        <span class="chip-name">@mood.Name</span>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
+    @* Selected Mood Summary *@
+    @if (PrimaryMood is not null)
+    {
+        <div class="mood-summary">
+            <div class="summary-label">
+                <span class="summary-icon">📝</span>
+                <span>Today's mood:</span>
+            </div>
+            <div class="summary-chips">
+                <div class="@GetSummaryChipClass(PrimaryMood, true)">
+                    <span>@PrimaryMood.Emoji</span>
+                    <span>@PrimaryMood.Name</span>
+                    <span class="primary-badge">Primary</span>
+                </div>
+                @foreach (var mood in SecondaryMoods)
+                {
+                    <div class="@GetSummaryChipClass(mood, false)">
+                        <span>@mood.Emoji</span>
+                        <span>@mood.Name</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Mood? PrimaryMood { get; set; }
+
+    [Parameter]
+    public EventCallback<Mood?> PrimaryMoodChanged { get; set; }
+
+    [Parameter]
+    public List<Mood> SecondaryMoods { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<Mood>> SecondaryMoodsChanged { get; set; }
+
+    private MoodCategory _activeCategory = MoodCategory.Positive;
+
+    private async Task SelectPrimaryMood(Mood mood)
+    {
+        PrimaryMood = mood;
+        _activeCategory = mood.Category;
+        await PrimaryMoodChanged.InvokeAsync(mood);
+
+        if (SecondaryMoods.Any(m => m.Id == mood.Id))
+        {
+            SecondaryMoods = SecondaryMoods.Where(m => m.Id != mood.Id).ToList();
+            await SecondaryMoodsChanged.InvokeAsync(SecondaryMoods);
+        }
+    }
+
+    private async Task ToggleSecondaryMood(Mood mood)
+    {
+        if (mood.Id == PrimaryMood?.Id) return;
+
+        if (SecondaryMoods.Any(m => m.Id == mood.Id))
+        {
+            SecondaryMoods = SecondaryMoods.Where(m => m.Id != mood.Id).ToList();
+        }
+        else if (SecondaryMoods.Count < 2)
+        {
+            SecondaryMoods = SecondaryMoods.Append(mood).ToList();
+        }
+
+        await SecondaryMoodsChanged.InvokeAsync(SecondaryMoods);
+    }
+
+    private static string GetCategoryEmoji(MoodCategory category) => category switch
+    {
+        MoodCategory.Positive => "😊",
+        MoodCategory.Neutral => "😐",
+        MoodCategory.Negative => "😔",
+        _ => "🎭"
+    };
+
+    private static string GetCategoryTabClass(MoodCategory category, bool isActive)
+    {
+        var baseClass = "category-tab";
+        var stateClass = isActive ? "active" : "";
+        var colorClass = category switch
+        {
+            MoodCategory.Positive => "tab-positive",
+            MoodCategory.Neutral => "tab-neutral",
+            MoodCategory.Negative => "tab-negative",
+            _ => ""
+        };
+        return $"{baseClass} {colorClass} {stateClass}".Trim();
+    }
+
+    private static string GetMoodButtonClass(Mood mood, bool isSelected)
+    {
+        var baseClass = "mood-button";
+        var stateClass = isSelected ? "selected" : "";
+        var colorClass = mood.Category switch
+        {
+            MoodCategory.Positive => "mood-positive",
+            MoodCategory.Neutral => "mood-neutral",
+            MoodCategory.Negative => "mood-negative",
+            _ => ""
+        };
+        return $"{baseClass} {colorClass} {stateClass}".Trim();
+    }
+
+    private static string GetSecondaryChipClass(Mood mood, bool isSelected, bool isDisabled)
+    {
+        var baseClass = "secondary-chip";
+        var stateClass = isSelected ? "selected" : isDisabled ? "disabled" : "";
+        var colorClass = mood.Category switch
+        {
+            MoodCategory.Positive => "chip-positive",
+            MoodCategory.Neutral => "chip-neutral",
+            MoodCategory.Negative => "chip-negative",
+            _ => ""
+        };
+        return $"{baseClass} {colorClass} {stateClass}".Trim();
+    }
+
+    private static string GetSummaryChipClass(Mood mood, bool isPrimary)
+    {
+        var baseClass = "summary-chip";
+        var typeClass = isPrimary ? "primary" : "secondary";
+        var colorClass = mood.Category switch
+        {
+            MoodCategory.Positive => "chip-positive",
+            MoodCategory.Neutral => "chip-neutral",
+            MoodCategory.Negative => "chip-negative",
+            _ => ""
+        };
+        return $"{baseClass} {colorClass} {typeClass}".Trim();
+    }
+}
