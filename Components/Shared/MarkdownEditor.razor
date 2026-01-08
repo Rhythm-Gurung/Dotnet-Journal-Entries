@@ -4,28 +4,29 @@
 <div class="space-y-3">
     <!-- Toolbar -->
     <div class="flex flex-wrap gap-1 rounded border border-slate-200 bg-slate-50 p-2">
-        <button class="rounded border bg-white px-2 py-1 text-xs font-bold hover:bg-slate-100"
-            @onclick='() => Execute("bold")' disabled="@Disabled">B</button>
-        <button class="rounded border bg-white px-2 py-1 text-xs italic hover:bg-slate-100"
-            @onclick='() => Execute("italic")' disabled="@Disabled">I</button>
-        <button class="rounded border bg-white px-2 py-1 text-xs hover:bg-slate-100"
-            @onclick='() => ExecuteBlock("formatBlock", "2xl")' disabled="@Disabled">H1</button>
-        <button class="rounded border bg-white px-2 py-1 text-xs hover:bg-slate-100"
-            @onclick='() => ExecuteBlock("formatBlock", "h2")' disabled="@Disabled">H2</button>
-        <button class="rounded border bg-white px-2 py-1 text-xs hover:bg-slate-100"
-            @onclick='() => Execute("insertUnorderedList")' disabled="@Disabled">• List</button>
-        <button class="rounded border bg-white px-2 py-1 text-xs hover:bg-slate-100"
-            @onclick='() => Execute("insertOrderedList")' disabled="@Disabled">1. List</button>
-        <button class="rounded border bg-white px-2 py-1 text-xs hover:bg-slate-100" @onclick="InsertLink"
-            disabled="@Disabled">🔗 Link</button>
+        <button class="@GetButtonClass("bold")" @onclick='() => Execute("bold")' disabled="@Disabled"
+            title="Bold">B</button>
+        <button class="@GetButtonClass("italic")" @onclick='() => Execute("italic")' disabled="@Disabled"
+            title="Italic">I</button>
+        <button class="@GetButtonClass("formatBlock")" @onclick='() => ToggleHeading("formatBlock", "h2")'
+            disabled="@Disabled" title="Heading 1">H1</button>
+        <button class="@GetButtonClass("formatBlock2")" @onclick='() => ToggleHeading("formatBlock2", "h3")'
+            disabled="@Disabled" title="Heading 2">H2</button>
+        <button class="@GetButtonClass("insertUnorderedList")" @onclick='() => ToggleList("insertUnorderedList")'
+            disabled="@Disabled" title="Bullet List">• List</button>
+        <button class="@GetButtonClass("insertOrderedList")" @onclick='() => ToggleList("insertOrderedList")'
+            disabled="@Disabled" title="Numbered List">1. List</button>
+        <button
+            class="rounded border px-2 py-1 text-xs hover:bg-slate-100 disabled:bg-slate-200 disabled:text-slate-400 @(Disabled ? "bg-slate-200 text-slate-400" : "bg-white")"
+            @onclick="InsertLink" disabled="@Disabled" title="Insert Link">🔗 Link</button>
     </div>
 
     <!-- Editor -->
     <div class="min-h-[180px] rounded border border-slate-300 bg-white p-3 text-sm focus-within:border-blue-400 focus-within:outline-none"
         contenteditable="true" @ref="_editor" @oninput="HandleInput" @onblur="HandleInput"
-        data-placeholder="Start writing..."></div>
+        @onmouseup="UpdateButtonStates" @onkeyup="UpdateButtonStates" data-placeholder="Start writing..."></div>
 
-    <span class="text-xs text-slate-400">@WordCount words</span>    
+    <span class="text-xs text-slate-400">@WordCount words</span>
 
     <!-- Preview -->
     @* <div class="rounded border border-slate-200 bg-slate-50 p-3">
@@ -46,6 +47,15 @@
     private IJSObjectReference? _module;
     private MarkdownPipeline _pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
     private string _lastHtml = string.Empty;
+    private Dictionary<string, bool> _activeFormats = new()
+{
+{ "bold", false },
+{ "italic", false },
+{ "formatBlock", false },
+{ "formatBlock2", false },
+{ "insertUnorderedList", false },
+{ "insertOrderedList", false }
+};
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -86,6 +96,37 @@
         await SyncFromDom();
     }
 
+    private async Task ToggleHeading(string formatKey, string headingTag)
+    {
+        if (Disabled || _module is null)
+        {
+            return;
+        }
+
+        // If heading is already active, convert back to paragraph
+        if (_activeFormats.TryGetValue(formatKey, out var isActive) && isActive)
+        {
+            await _module.InvokeVoidAsync("exec", _editor, "formatBlock", "p");
+        }
+        else
+        {
+            await _module.InvokeVoidAsync("exec", _editor, "formatBlock", headingTag);
+        }
+        await SyncFromDom();
+    }
+
+    private async Task ToggleList(string listCommand)
+    {
+        if (Disabled || _module is null)
+        {
+            return;
+        }
+
+        // execCommand for lists already toggles, so just call it
+        await _module.InvokeVoidAsync("exec", _editor, listCommand, null);
+        await SyncFromDom();
+    }
+
     private async Task InsertLink()
     {
         if (Disabled || _module is null)
@@ -108,6 +149,25 @@
         await SyncFromDom();
     }
 
+    private async Task UpdateButtonStates()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        // Check which formats are active in the current selection
+        _activeFormats["bold"] = await _module.InvokeAsync<bool>("queryCommandState", "bold");
+        _activeFormats["italic"] = await _module.InvokeAsync<bool>("queryCommandState", "italic");
+
+        _activeFormats["formatBlock"] = await _module.InvokeAsync<bool>("isHeading", _editor, "h2");
+        _activeFormats["formatBlock2"] = await _module.InvokeAsync<bool>("isHeading", _editor, "h3");
+        _activeFormats["insertUnorderedList"] = await _module.InvokeAsync<bool>("isInList", _editor, "ul");
+        _activeFormats["insertOrderedList"] = await _module.InvokeAsync<bool>("isInList", _editor, "ol");
+
+        StateHasChanged();
+    }
+
     private async Task SyncFromDom()
     {
         if (_module is null)
@@ -119,6 +179,7 @@
         _lastHtml = html;
         Value = html;
         await ValueChanged.InvokeAsync(Value);
+        await UpdateButtonStates();
     }
 
     private async Task SetHtml(string? html)
@@ -130,6 +191,15 @@
 
         _lastHtml = html ?? string.Empty;
         await _module.InvokeVoidAsync("setHtml", _editor, _lastHtml);
+    }
+
+    private string GetButtonClass(string format)
+    {
+        var isActive = _activeFormats.TryGetValue(format, out var active) && active;
+        var baseClass = "rounded border px-2 py-1 text-xs";
+        var stateClass = isActive ? "bg-blue-500 text-white font-semibold hover:bg-blue-600" : "bg-white hover:bg-slate-100";
+        var disabledClass = Disabled ? "disabled:bg-slate-200 disabled:text-slate-400" : "";
+        return $"{baseClass} {stateClass} {disabledClass}".Trim();
     }
 
     private string Rendered => Markdown.ToHtml(Value ?? string.Empty, _pipeline);
