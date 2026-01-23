@@ -1,6 +1,420 @@
 @page "/insights"
+@using System.Text.RegularExpressions
+@using journalstart.Models
+@inject JournalService JournalService
+@inject NavigationManager Navigation
 
-<section class="card mt-4">
-    <h1 class="text-2xl font-bold text-slate-800">Welcome to Insights</h1>
-    <p class="mt-2 text-slate-600">Analytics will appear here.</p>
+<section class="mt-4 space-y-4">
+    <!-- Search & Filter Bar -->
+    <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="flex gap-2">
+            <!-- Search Input -->
+            <div class="relative flex-1">
+                <svg class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input type="text" @bind="SearchQuery" @bind:event="oninput"
+                    class="w-full rounded border border-slate-300 py-2 pl-10 pr-3 text-sm focus:border-blue-400 focus:outline-none"
+                    placeholder="Search entries..." />
+            </div>
+
+            <!-- Filter Button -->
+            <button @onclick="ToggleFilters"
+                class="flex items-center gap-2 rounded border px-4 py-2 text-sm @(ShowFilters ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-300 bg-white hover:bg-slate-50")">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Filters
+                @if (ActiveFilterCount > 0)
+                {
+                    <span
+                        class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">@ActiveFilterCount</span>
+                }
+            </button>
+        </div>
+
+        <!-- Filters Panel -->
+        @if (ShowFilters)
+        {
+            <div class="mt-4 space-y-4 border-t border-slate-200 pt-4">
+                <div class="flex items-center justify-between">
+                    <h4 class="font-medium text-slate-700">Filters</h4>
+                    @if (ActiveFilterCount > 0)
+                    {
+                        <button @onclick="ClearAllFilters" class="text-xs text-red-600 hover:underline">
+                            Clear all
+                        </button>
+                    }
+                </div>
+
+                <!-- Date Range -->
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-600">Date Range</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="date" value="@StartDate"
+                            @onchange="@((ChangeEventArgs e) => { StartDate = e.Value?.ToString(); })"
+                            class="rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                        <input type="date" value="@EndDate"
+                            @onchange="@((ChangeEventArgs e) => { EndDate = e.Value?.ToString(); })"
+                            class="rounded border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
+                    </div>
+                </div>
+
+                <!-- Moods Filter -->
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-600">Moods</label>
+                    <div class="space-y-2">
+                        @foreach (var category in Enum.GetValues<MoodCategory>())
+                        {
+                            var categoryMoods = MoodCatalog.All.Where(m => m.Category == category).ToList();
+                            if (categoryMoods.Any())
+                            {
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach (var mood in categoryMoods)
+                                    {
+                                        var isSelected = SelectedMoods.Contains(mood.Id);
+                                        <button @onclick="() => ToggleMood(mood.Id)"
+                                            class="rounded-full px-3 py-1 text-xs transition @GetMoodFilterClass(mood.Category, isSelected)">
+                                            @mood.Emoji @mood.Name
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- Tags Filter -->
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-600">Tags</label>
+                    <div class="flex flex-wrap gap-1">
+                        @foreach (var tag in AllTags.Take(16))
+                        {
+                            var isSelected = SelectedTags.Contains(tag);
+                            <button @onclick="() => ToggleTag(tag)"
+                                class="rounded-full px-3 py-1 text-xs @(isSelected ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")">
+                                @tag
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Entry List -->
+    <div class="space-y-3">
+        @if (!FilteredEntries.Any())
+        {
+            <div class="rounded-lg border border-slate-200 bg-white p-12 text-center">
+                <p class="text-slate-500">No entries found</p>
+                <p class="mt-1 text-sm text-slate-400">Try adjusting your search or filters</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var entry in PaginatedEntries)
+            {
+                var isSelected = SelectedEntryId == entry.Id;
+                <button @onclick="() => SelectEntry(entry)"
+                    class="w-full rounded-lg border bg-white p-4 text-left transition hover:shadow-md @(isSelected ? "ring-2 ring-blue-500 border-blue-500" : "border-slate-200")">
+                    <div class="flex items-start gap-4">
+                        <!-- Date -->
+                        <div class="shrink-0 text-center">
+                            <p class="text-2xl font-semibold">@entry.Date.Day</p>
+                            <p class="text-xs uppercase text-slate-400">@entry.Date.ToString("MMM")</p>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="min-w-0 flex-1">
+                            <div class="mb-1 flex items-center gap-2">
+                                @if (!string.IsNullOrEmpty(entry.PrimaryMood))
+                                {
+                                    var mood = MoodCatalog.Get(entry.PrimaryMood);
+                                    if (mood != null)
+                                    {
+                                        <span class="text-lg">@mood.Emoji</span>
+                                        <span class="text-sm font-medium">@mood.Name</span>
+                                    }
+                                }
+                                @if (entry.SecondaryMoods.Any())
+                                {
+                                    <span class="text-slate-400">
+                                        +@string.Join("", entry.SecondaryMoods.Select(id => MoodCatalog.Get(id)?.Emoji ?? ""))
+                                    </span>
+                                }
+                            </div>
+
+                            <p class="line-clamp-2 text-sm text-slate-500">@StripHtml(entry.Content)</p>
+
+                            @if (entry.Tags.Any())
+                            {
+                                <div class="mt-2 flex flex-wrap gap-1">
+                                    @foreach (var tag in entry.Tags.Take(3))
+                                    {
+                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">@tag</span>
+                                    }
+                                    @if (entry.Tags.Count > 3)
+                                    {
+                                        <span class="text-xs text-slate-400">+@(entry.Tags.Count - 3)</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Word count -->
+                        <div class="text-xs text-slate-400">@GetWordCount(entry.Content) words</div>
+                    </div>
+                </button>
+            }
+
+            <!-- Pagination -->
+            @if (TotalPages > 1)
+            {
+                <div class="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3">
+                    <p class="text-sm text-slate-600">
+                        Showing @((CurrentPage - 1) * PageSize + 1) to @Math.Min(CurrentPage * PageSize, FilteredEntries.Count)
+                        of @FilteredEntries.Count entries
+                    </p>
+                    <div class="flex gap-1">
+                        <button @onclick="PreviousPage" disabled="@(CurrentPage == 1)"
+                            class="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50">
+                            Previous
+                        </button>
+                        @for (int i = 1; i <= TotalPages; i++)
+                        {
+                            var pageNum = i;
+                            <button @onclick="() => GoToPage(pageNum)"
+                                class="rounded px-3 py-1 text-sm @(CurrentPage == pageNum ? "bg-blue-600 text-white" : "border border-slate-300 hover:bg-slate-50")">
+                                @pageNum
+                            </button>
+                        }
+                        <button @onclick="NextPage" disabled="@(CurrentPage == TotalPages)"
+                            class="rounded border border-slate-300 px-3 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50">
+                            Next
+                        </button>
+                    </div>
+                </div>
+            }
+        }
+    </div>
 </section>
+
+@code {
+    private List<JournalEntry> AllEntries { get; set; } = new();
+    private List<JournalEntry> FilteredEntries { get; set; } = new();
+    private List<string> AllTags { get; set; } = new();
+
+    private bool ShowFilters { get; set; }
+
+    private string? _startDate;
+    private string? StartDate
+    {
+        get => _startDate;
+        set
+        {
+            _startDate = value;
+            CurrentPage = 1;
+            ApplyFilters();
+        }
+    }
+
+    private string? _endDate;
+    private string? EndDate
+    {
+        get => _endDate;
+        set
+        {
+            _endDate = value;
+            CurrentPage = 1;
+            ApplyFilters();
+        }
+    }
+    private HashSet<string> SelectedMoods { get; set; } = new();
+    private HashSet<string> SelectedTags { get; set; } = new();
+
+    private Guid? SelectedEntryId { get; set; }
+    private int CurrentPage { get; set; } = 1;
+    private int PageSize { get; set; } = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEntries();
+        ExtractAllTags();
+        ApplyFilters();
+    }
+
+    private async Task LoadEntries()
+    {
+        AllEntries = await JournalService.GetAllEntriesAsync();
+    }
+
+    private void ExtractAllTags()
+    {
+        AllTags = AllEntries
+        .SelectMany(e => e.Tags)
+        .Distinct()
+        .OrderBy(t => t)
+        .ToList();
+    }
+
+    private string _searchQuery = string.Empty;
+    private string SearchQuery
+    {
+        get => _searchQuery;
+        set
+        {
+            _searchQuery = value;
+            CurrentPage = 1;
+            ApplyFilters();
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        FilteredEntries = AllEntries.Where(entry =>
+        {
+            // Search filter
+            if (!string.IsNullOrWhiteSpace(SearchQuery))
+            {
+                var searchLower = SearchQuery.ToLower();
+                var content = StripHtml(entry.Content).ToLower();
+                if (!content.Contains(searchLower))
+                    return false;
+            }
+
+            // Date range filter
+            if (!string.IsNullOrEmpty(StartDate) && DateOnly.TryParse(StartDate, out var start))
+            {
+                if (entry.Date < start)
+                    return false;
+            }
+            if (!string.IsNullOrEmpty(EndDate) && DateOnly.TryParse(EndDate, out var end))
+            {
+                if (entry.Date > end)
+                    return false;
+            }
+
+            // Mood filter
+            if (SelectedMoods.Any())
+            {
+                var entryMoods = new[] { entry.PrimaryMood }.Concat(entry.SecondaryMoods).Where(m => m != null);
+                if (!SelectedMoods.Any(sm => entryMoods.Contains(sm)))
+                    return false;
+            }
+
+            // Tag filter
+            if (SelectedTags.Any())
+            {
+                if (!SelectedTags.Any(st => entry.Tags.Contains(st)))
+                    return false;
+            }
+
+            return true;
+        }).ToList();
+    }
+
+    private void ToggleFilters()
+    {
+        ShowFilters = !ShowFilters;
+    }
+
+    private void ToggleMood(string moodId)
+    {
+        if (SelectedMoods.Contains(moodId))
+            SelectedMoods.Remove(moodId);
+        else
+            SelectedMoods.Add(moodId);
+
+        CurrentPage = 1;
+        ApplyFilters();
+    }
+
+    private void ToggleTag(string tag)
+    {
+        if (SelectedTags.Contains(tag))
+            SelectedTags.Remove(tag);
+        else
+            SelectedTags.Add(tag);
+
+        CurrentPage = 1;
+        ApplyFilters();
+    }
+
+    private void ClearAllFilters()
+    {
+        StartDate = null;
+        EndDate = null;
+        SelectedMoods.Clear();
+        SelectedTags.Clear();
+        CurrentPage = 1;
+        ApplyFilters();
+    }
+
+    private void SelectEntry(JournalEntry entry)
+    {
+        SelectedEntryId = entry.Id;
+        Navigation.NavigateTo($"/?date={entry.Date:yyyy-MM-dd}");
+    }
+
+    private string StripHtml(string html)
+    {
+        return Regex.Replace(html ?? string.Empty, "<[^>]+>", " ").Trim();
+    }
+
+    private int GetWordCount(string html)
+    {
+        var text = StripHtml(html);
+        return text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    private string GetMoodFilterClass(MoodCategory category, bool isSelected)
+    {
+        if (isSelected)
+        {
+            return category switch
+            {
+                MoodCategory.Positive => "bg-green-100 text-green-700 ring-2 ring-green-400",
+                MoodCategory.Neutral => "bg-blue-100 text-blue-700 ring-2 ring-blue-400",
+                MoodCategory.Negative => "bg-red-100 text-red-700 ring-2 ring-red-400",
+                _ => "bg-slate-100 text-slate-700"
+            };
+        }
+        return "bg-slate-100 text-slate-600 hover:bg-slate-200";
+    }
+
+    private int ActiveFilterCount =>
+    (string.IsNullOrEmpty(StartDate) ? 0 : 1) +
+    (string.IsNullOrEmpty(EndDate) ? 0 : 1) +
+    SelectedMoods.Count +
+    SelectedTags.Count;
+
+    // Pagination
+    private List<JournalEntry> PaginatedEntries =>
+    FilteredEntries
+    .Skip((CurrentPage - 1) * PageSize)
+    .Take(PageSize)
+    .ToList();
+
+    private int TotalPages => (int)Math.Ceiling(FilteredEntries.Count / (double)PageSize);
+
+    private void PreviousPage()
+    {
+        if (CurrentPage > 1)
+            CurrentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (CurrentPage < TotalPages)
+            CurrentPage++;
+    }
+
+    private void GoToPage(int page)
+    {
+        CurrentPage = page;
+    }
+}

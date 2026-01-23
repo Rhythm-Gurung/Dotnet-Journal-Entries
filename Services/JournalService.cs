@@ -54,4 +54,20 @@ public class JournalService
             return Task.FromResult(_entries.Remove(date));
         }
     }
+
+    public Task<List<DateOnly>> GetEntryDatesAsync()
+    {
+        lock (_lock)
+        {
+            return Task.FromResult(_entries.Keys.ToList());
+        }
+    }
+
+    public Task<List<JournalEntry>> GetAllEntriesAsync()
+    {
+        lock (_lock)
+        {
+            return Task.FromResult(_entries.Values.OrderByDescending(e => e.Date).ToList());
+        }
+    }
 }
