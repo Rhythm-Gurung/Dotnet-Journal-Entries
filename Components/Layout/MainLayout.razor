@@ -1,5 +1,6 @@
 ﻿@inherits LayoutComponentBase
 @using journalstart.Components.Layout
+@inject ThemeService ThemeService
 
 <div class="page">
     <header class="topbar">
@@ -12,3 +13,14 @@
         </article>
     </main>
 </div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await ThemeService.InitializeAsync();
+            StateHasChanged();
+        }
+    }
+}

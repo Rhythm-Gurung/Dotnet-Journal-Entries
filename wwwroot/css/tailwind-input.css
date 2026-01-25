@@ -5,20 +5,111 @@
 @tailwind utilities;
 
 @layer base {
+  /* CSS Variables for Theming */
+  :root {
+    /* Light Theme Colors */
+    --color-bg-primary: 244 246 251; /* slate-50 */
+    --color-bg-secondary: 255 255 255; /* white */
+    --color-bg-tertiary: 248 250 252; /* slate-50 */
+    --color-bg-accent: 238 242 255; /* indigo-50 */
+    --color-bg-card: 255 255 255; /* white */
+    
+    --color-text-primary: 30 41 59; /* slate-800 */
+    --color-text-secondary: 71 85 105; /* slate-600 */
+    --color-text-tertiary: 148 163 184; /* slate-400 */
+    --color-text-accent: 67 56 202; /* indigo-700 */
+    
+    --color-border-primary: 226 232 240; /* slate-200 */
+    --color-border-secondary: 203 213 225; /* slate-300 */
+    --color-border-accent: 199 210 254; /* indigo-200 */
+    
+    --color-accent-primary: 99 102 241; /* indigo-500 */
+    --color-accent-hover: 79 70 229; /* indigo-600 */
+    --color-accent-light: 224 231 255; /* indigo-100 */
+  }
+
+  /* Dark Theme Colors */
+  .dark {
+    --color-bg-primary: 15 23 42; /* slate-900 */
+    --color-bg-secondary: 30 41 59; /* slate-800 */
+    --color-bg-tertiary: 51 65 85; /* slate-700 */
+    --color-bg-accent: 30 27 75; /* indigo-950 */
+    --color-bg-card: 30 41 59; /* slate-800 */
+    
+    --color-text-primary: 241 245 249; /* slate-100 */
+    --color-text-secondary: 203 213 225; /* slate-300 */
+    --color-text-tertiary: 148 163 184; /* slate-400 */
+    --color-text-accent: 165 180 252; /* indigo-300 */
+    
+    --color-border-primary: 51 65 85; /* slate-700 */
+    --color-border-secondary: 71 85 105; /* slate-600 */
+    --color-border-accent: 67 56 202; /* indigo-700 */
+    
+    --color-accent-primary: 99 102 241; /* indigo-500 */
+    --color-accent-hover: 129 140 248; /* indigo-400 */
+    --color-accent-light: 49 46 129; /* indigo-900 */
+  }
+
+  /* Custom Theme - uses CSS variables set by JS */
+  .custom {
+    --color-bg-primary: var(--custom-bg-primary, 244 246 251);
+    --color-bg-secondary: var(--custom-bg-secondary, 255 255 255);
+    --color-bg-tertiary: var(--custom-bg-tertiary, 248 250 252);
+    --color-bg-accent: var(--custom-bg-accent, 238 242 255);
+    --color-bg-card: var(--custom-bg-card, 255 255 255);
+    
+    --color-text-primary: var(--custom-text-primary, 30 41 59);
+    --color-text-secondary: var(--custom-text-secondary, 71 85 105);
+    --color-text-tertiary: var(--custom-text-tertiary, 148 163 184);
+    --color-text-accent: var(--custom-text-accent, 67 56 202);
+    
+    --color-border-primary: var(--custom-border-primary, 226 232 240);
+    --color-border-secondary: var(--custom-border-secondary, 203 213 225);
+    --color-border-accent: var(--custom-border-accent, 199 210 254);
+    
+    --color-accent-primary: var(--custom-accent-primary, 99 102 241);
+    --color-accent-hover: var(--custom-accent-hover, 79 70 229);
+    --color-accent-light: var(--custom-accent-light, 224 231 255);
+  }
+
   html {
     font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
-    background-color: #f4f6fb;
-    color: #1f2937;
+    background-color: rgb(var(--color-bg-primary));
+    color: rgb(var(--color-text-primary));
+  }
+
+  body {
+    background-color: rgb(var(--color-bg-primary));
+    color: rgb(var(--color-text-primary));
   }
 }
 
 @layer components {
   .card {
-    @apply rounded-2xl bg-white/90 p-4 shadow-sm ring-1 ring-slate-100 backdrop-blur;
+    @apply rounded-2xl bg-white/90 p-4 shadow-sm ring-1 ring-slate-100 backdrop-blur dark:bg-slate-800/90 dark:ring-slate-700;
   }
 
   .pill {
-    @apply inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-800;
+    @apply inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200;
+  }
+
+  /* Theme-aware components using CSS variables */
+  .themed-bg {
+    background-color: rgb(var(--color-bg-secondary));
+  }
+
+  .themed-text {
+    color: rgb(var(--color-text-primary));
+  }
+
+  .themed-border {
+    border-color: rgb(var(--color-border-primary));
+  }
+
+  .themed-card {
+    background-color: rgb(var(--color-bg-card));
+    border-color: rgb(var(--color-border-primary));
+    color: rgb(var(--color-text-primary));
   }
 }
 

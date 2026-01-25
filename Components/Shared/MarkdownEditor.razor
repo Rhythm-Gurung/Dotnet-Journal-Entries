@@ -3,7 +3,8 @@
 
 <div class="space-y-3">
     <!-- Toolbar -->
-    <div class="flex flex-wrap gap-1 rounded border border-slate-200 bg-slate-50 p-2">
+    <div
+        class="flex flex-wrap gap-1 rounded border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-800">
         <button class="@GetButtonClass("bold")" @onclick='() => Execute("bold")' disabled="@Disabled"
             title="Bold">B</button>
         <button class="@GetButtonClass("italic")" @onclick='() => Execute("italic")' disabled="@Disabled"
@@ -17,16 +18,16 @@
         <button class="@GetButtonClass("insertOrderedList")" @onclick='() => ToggleList("insertOrderedList")'
             disabled="@Disabled" title="Numbered List">1. List</button>
         <button
-            class="rounded border px-2 py-1 text-xs hover:bg-slate-100 disabled:bg-slate-200 disabled:text-slate-400 @(Disabled ? "bg-slate-200 text-slate-400" : "bg-white")"
+            class="rounded border px-2 py-1 text-xs hover:bg-slate-100 disabled:bg-slate-200 disabled:text-slate-400 dark:hover:bg-slate-700 dark:disabled:bg-slate-700 dark:disabled:text-slate-500 @(Disabled ? "bg-slate-200 text-slate-400 dark:bg-slate-700 dark:text-slate-500" : "bg-white dark:bg-slate-600")"
             @onclick="InsertLink" disabled="@Disabled" title="Insert Link">🔗 Link</button>
     </div>
 
     <!-- Editor -->
-    <div class="min-h-[180px] rounded border border-slate-300 bg-white p-3 text-sm focus-within:border-blue-400 focus-within:outline-none"
+    <div class="min-h-[180px] rounded border border-slate-300 bg-white p-3 text-sm focus-within:border-blue-400 focus-within:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus-within:border-blue-500"
         contenteditable="true" @ref="_editor" @oninput="HandleInput" @onblur="HandleInput"
         @onmouseup="UpdateButtonStates" @onkeyup="UpdateButtonStates" data-placeholder="Start writing..."></div>
 
-    <span class="text-xs text-slate-400">@WordCount words</span>
+    <span class="text-xs text-slate-400 dark:text-slate-500">@WordCount words</span>
 
     <!-- Preview -->
     @* <div class="rounded border border-slate-200 bg-slate-50 p-3">
@@ -197,8 +198,10 @@
     {
         var isActive = _activeFormats.TryGetValue(format, out var active) && active;
         var baseClass = "rounded border px-2 py-1 text-xs";
-        var stateClass = isActive ? "bg-blue-500 text-white font-semibold hover:bg-blue-600" : "bg-white hover:bg-slate-100";
-        var disabledClass = Disabled ? "disabled:bg-slate-200 disabled:text-slate-400" : "";
+        var stateClass = isActive
+        ? "bg-blue-500 text-white font-semibold hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+        : "bg-white hover:bg-slate-100 dark:bg-slate-600 dark:hover:bg-slate-700 dark:text-slate-100";
+        var disabledClass = Disabled ? "disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-700 dark:disabled:text-slate-500" : "";
         return $"{baseClass} {stateClass} {disabledClass}".Trim();
     }
 
