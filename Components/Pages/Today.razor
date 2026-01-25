@@ -1,37 +1,40 @@
 @page "/"
-@using System.Text.RegularExpressions
 @using journalstart.Models
-@inject JournalService JournalService
+@using journalstart.Components.Shared
+@using journalstart.Components.Shared
 
-<section class="mt-4 space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+<section class="mt-4 space-y-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
     <div class="flex flex-col gap-3">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div class="flex items-center gap-3">
                 <div class="text-2xl">📔</div>
                 <div>
-                    <h1 class="text-xl font-bold text-slate-800">@SelectedDate.ToString("dddd")</h1>
-                    <div class="flex items-center gap-2 text-sm text-slate-500">
+                    <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">@SelectedDate.ToString("dddd")</h1>
+                    <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                         <span>@SelectedDate.ToString("MMMM dd, yyyy")</span>
                         @if (IsToday)
                         {
-                            <span class="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">Today</span>
+                            <span
+                                class="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">Today</span>
                         }
                     </div>
                 </div>
             </div>
 
             <div class="flex items-center gap-2">
-                <button class="rounded border border-slate-300 bg-slate-50 px-3 py-1 text-sm hover:bg-slate-100"
+                <button
+                    class="rounded border border-slate-300 bg-slate-50 px-3 py-1 text-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                     @onclick="() => ChangeDay(-1)" disabled="@_isBusy">← Prev</button>
-                <span class="px-2 text-sm font-medium">@SelectedDate.ToString("MMM dd")</span>
-                <button class="rounded border border-slate-300 bg-slate-50 px-3 py-1 text-sm hover:bg-slate-100"
+                <span class="px-2 text-sm font-medium dark:text-slate-200">@SelectedDate.ToString("MMM dd")</span>
+                <button
+                    class="rounded border border-slate-300 bg-slate-50 px-3 py-1 text-sm hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                     @onclick="() => ChangeDay(1)" disabled="@_isBusy">Next →</button>
             </div>
         </div>
 
         @if (HasEntry)
         {
-            <p class="text-xs text-slate-400">
+            <p class="text-xs text-slate-400 dark:text-slate-500">
                 Created: @CreatedAtUtc?.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")
                 @if (UpdatedAtUtc.HasValue && UpdatedAtUtc != CreatedAtUtc)
                 {
@@ -42,33 +45,37 @@
     </div>
 
     <div class="space-y-4">
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <MarkdownEditor @bind-Value="Content" Disabled="@_isBusy" />
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <MoodSelector @bind-PrimaryMood="PrimaryMood" @bind-SecondaryMoods="SecondaryMoods" />
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
-            <label class="text-sm font-medium text-slate-600">Tags</label>
+        <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+            <label class="text-sm font-medium text-slate-600 dark:text-slate-300">Tags</label>
             <div class="mt-2 flex gap-2">
                 <input
-                    class="flex-1 rounded border border-slate-300 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
+                    class="flex-1 rounded border border-slate-300 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
                     placeholder="Add a tag..." @bind="NewTag" @bind:event="oninput" @onkeydown="OnTagKeyDown" />
-                <button class="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 disabled:bg-blue-300"
+                <button
+                    class="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 disabled:bg-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700"
                     @onclick="AddTag" disabled="@string.IsNullOrWhiteSpace(NewTag)">Add</button>
             </div>
             <div class="mt-2 flex flex-wrap gap-1">
                 @if (!Tags.Any())
                 {
-                    <span class="text-xs text-slate-400">No tags yet</span>
+                    <span class="text-xs text-slate-400 dark:text-slate-500">No tags yet</span>
                 }
                 @foreach (var tag in Tags)
                 {
-                    <span class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                    <span
+                        class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                         @tag
-                        <button class="ml-1 text-slate-400 hover:text-slate-600" @onclick="() => RemoveTag(tag)">×</button>
+                        <button
+                            class="ml-1 text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200"
+                            @onclick="() => RemoveTag(tag)">×</button>
                     </span>
                 }
             </div>
@@ -76,189 +83,50 @@
     </div>
 
     <div class="flex gap-2">
-        <button class="rounded bg-blue-500 px-4 py-2 text-sm text-white hover:bg-blue-600 disabled:bg-blue-300"
+        <button
+            class="rounded bg-blue-500 px-4 py-2 text-sm text-white hover:bg-blue-600 disabled:bg-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700"
             @onclick="SaveAsync" disabled="@(_isBusy || !CanSave)">
             @(HasEntry ? "Update" : "Save")
         </button>
+        @if (HasEntry && HasPin)
+        {
+            <button
+                class="rounded border border-slate-300 px-4 py-2 text-sm transition hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700 @(IsEntryLocked ? "text-amber-600 dark:text-amber-400" : "text-slate-600 dark:text-slate-400")"
+                @onclick="ToggleLock" disabled="@_isBusy">
+                <div class="flex items-center gap-2">
+                    @if (IsEntryLocked)
+                    {
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span>Locked</span>
+                    }
+                    else
+                    {
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                        </svg>
+                        <span>Unlocked</span>
+                    }
+                </div>
+            </button>
+        }
         @if (HasEntry)
         {
-            <button class="rounded border border-red-300 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+            <button
+                class="rounded border border-red-300 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
                 @onclick="DeleteAsync" disabled="@_isBusy">
                 Delete
             </button>
         }
         @if (!string.IsNullOrEmpty(StatusMessage))
         {
-            <span class="text-sm text-slate-500">@StatusMessage</span>
+            <span class="text-sm text-slate-500 dark:text-slate-400">@StatusMessage</span>
         }
     </div>
 </section>
 
-@code {
-    private DateOnly SelectedDate = DateOnly.FromDateTime(DateTime.Now);
-    private string Content = string.Empty;
-    private Mood? PrimaryMood;
-    private List<Mood> SecondaryMoods = new();
-    private List<string> Tags = new();
-    private string NewTag = string.Empty;
-    private DateTime? CreatedAtUtc;
-    private DateTime? UpdatedAtUtc;
-    private bool HasEntry;
-    private bool _isBusy;
-    private string StatusMessage = string.Empty;
-    private JournalEntry? _loaded;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadEntryAsync();
-    }
-
-    private async Task LoadEntryAsync()
-    {
-        _isBusy = true;
-        StatusMessage = string.Empty;
-        var entry = await JournalService.GetEntryAsync(SelectedDate);
-
-        if (entry is not null)
-        {
-            _loaded = entry;
-            Content = entry.Content;
-            PrimaryMood = MoodCatalog.Get(entry.PrimaryMood);
-            SecondaryMoods = entry.SecondaryMoods.Select(id => MoodCatalog.Get(id)).Where(m => m is not null).Cast<Mood>().ToList();
-            Tags = entry.Tags.ToList();
-            CreatedAtUtc = entry.CreatedAt;
-            UpdatedAtUtc = entry.UpdatedAt;
-            HasEntry = true;
-        }
-        else
-        {
-            _loaded = null;
-            Content = string.Empty;
-            PrimaryMood = null;
-            SecondaryMoods = new();
-            Tags = new();
-            CreatedAtUtc = null;
-            UpdatedAtUtc = null;
-            HasEntry = false;
-        }
-
-        _isBusy = false;
-    }
-
-    private async Task SaveAsync()
-    {
-        if (string.IsNullOrWhiteSpace(Content) || PrimaryMood is null)
-        {
-            StatusMessage = "Add text and select a primary mood before saving.";
-            return;
-        }
-
-        _isBusy = true;
-        StatusMessage = string.Empty;
-
-        var saved = await JournalService.UpsertEntryAsync(SelectedDate, Content.Trim(), PrimaryMood.Id, SecondaryMoods.Select(m
-        => m.Id).ToList(),
-        Tags.ToList());
-        _loaded = saved;
-        Content = saved.Content;
-        PrimaryMood = MoodCatalog.Get(saved.PrimaryMood);
-        SecondaryMoods = saved.SecondaryMoods.Select(id => MoodCatalog.Get(id)).Where(m => m is not null).Cast<Mood>().ToList();
-        Tags = saved.Tags.ToList();
-        CreatedAtUtc = saved.CreatedAt;
-        UpdatedAtUtc = saved.UpdatedAt;
-        HasEntry = true;
-        StatusMessage = "Entry saved.";
-        _isBusy = false;
-    }
-
-    private async Task DeleteAsync()
-    {
-        _isBusy = true;
-        StatusMessage = string.Empty;
-
-        var removed = await JournalService.DeleteEntryAsync(SelectedDate);
-        if (removed)
-        {
-            Content = string.Empty;
-            PrimaryMood = null;
-            SecondaryMoods = new();
-            Tags = new();
-            CreatedAtUtc = null;
-            UpdatedAtUtc = null;
-            HasEntry = false;
-            StatusMessage = "Entry deleted.";
-        }
-        else
-        {
-            StatusMessage = "No entry to delete for this date.";
-        }
-
-        _isBusy = false;
-    }
-
-    private async Task ChangeDay(int deltaDays)
-    {
-        SelectedDate = SelectedDate.AddDays(deltaDays);
-        await LoadEntryAsync();
-    }
-
-    private int WordCount
-    {
-        get
-        {
-            var text = Regex.Replace(Content ?? string.Empty, "<[^>]+>", " ");
-            return text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-        }
-    }
-
-    private bool IsToday => SelectedDate == DateOnly.FromDateTime(DateTime.Now);
-
-    private bool CanSave => !string.IsNullOrWhiteSpace(Content) && PrimaryMood is not null && HasChanges;
-
-    private bool HasChanges
-    {
-        get
-        {
-            if (_loaded is null)
-            {
-                return !string.IsNullOrWhiteSpace(Content) || PrimaryMood is not null || SecondaryMoods.Any() ||
-                Tags.Any();
-            }
-
-            var contentChanged = !string.Equals(Content, _loaded.Content, StringComparison.Ordinal);
-            var primaryChanged = !string.Equals(PrimaryMood?.Id, _loaded.PrimaryMood, StringComparison.Ordinal);
-            var secondaryChanged = !SecondaryMoods.Select(m => m.Id).SequenceEqual(_loaded.SecondaryMoods);
-            var tagsChanged = !Tags.SequenceEqual(_loaded.Tags);
-            return contentChanged || primaryChanged || secondaryChanged || tagsChanged;
-        }
-    }
-
-    private void AddTag()
-    {
-        var trimmed = (NewTag ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(trimmed))
-        {
-            return;
-        }
-
-        if (!Tags.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
-        {
-            Tags.Add(trimmed);
-        }
-
-        NewTag = string.Empty;
-    }
-
-    private void RemoveTag(string tag)
-    {
-        Tags.Remove(tag);
-    }
-
-    private void OnTagKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
-        {
-            AddTag();
-        }
-    }
-}
+<PinModal IsVisible="@ShowUnlockModal" Title="Enter PIN to View Entry" IsSettingPin="false"
+    OnSubmit="HandleUnlockSubmit" OnCancel="HandleUnlockCancel" />

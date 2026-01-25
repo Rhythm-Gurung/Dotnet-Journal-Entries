@@ -1,57 +1,128 @@
 using journalstart.Models;
+using SQLite;
 
 namespace journalstart.Services;
 
 public class JournalService
 {
-    private readonly Dictionary<DateOnly, JournalEntry> _entries = new();
-    private readonly object _lock = new();
+    private readonly SQLiteAsyncConnection _database;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
-    public Task<JournalEntry?> GetEntryAsync(DateOnly date)
+    public JournalService()
     {
-        lock (_lock)
-        {
-            _entries.TryGetValue(date, out var entry);
-            return Task.FromResult(entry);
-        }
+        var dbPath = Path.Combine(FileSystem.AppDataDirectory, "journal.db");
+        _database = new SQLiteAsyncConnection(dbPath);
     }
 
-    public Task<JournalEntry> UpsertEntryAsync(DateOnly date, string content, string? primaryMood, List<string> secondaryMoods, List<string> tags)
+    private async Task InitializeAsync()
     {
-        var now = DateTime.UtcNow;
-        lock (_lock)
+        if (_initialized) return;
+
+        await _initLock.WaitAsync();
+        try
         {
-            if (_entries.TryGetValue(date, out var existing))
+            if (!_initialized)
             {
-                existing.Content = content;
-                existing.PrimaryMood = primaryMood;
-                existing.SecondaryMoods = secondaryMoods;
-                existing.Tags = tags;
-                existing.UpdatedAt = now;
-                return Task.FromResult(existing);
+                await _database.CreateTableAsync<JournalEntry>();
+                _initialized = true;
             }
-
-            var entry = new JournalEntry
-            {
-                Date = date,
-                Content = content,
-                PrimaryMood = primaryMood,
-                SecondaryMoods = secondaryMoods,
-                Tags = tags,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-
-            _entries[date] = entry;
-            return Task.FromResult(entry);
+        }
+        finally
+        {
+            _initLock.Release();
         }
     }
 
-    public Task<bool> DeleteEntryAsync(DateOnly date)
+    public async Task<JournalEntry?> GetEntryAsync(DateOnly date)
     {
-        lock (_lock)
+        await InitializeAsync();
+        var dateStr = date.ToString("yyyy-MM-dd");
+        return await _database.Table<JournalEntry>()
+            .Where(e => e.Date == dateStr)
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<JournalEntry> UpsertEntryAsync(DateOnly date, string content, string? primaryMood, List<string> secondaryMoods, List<string> tags)
+    {
+        await InitializeAsync();
+        var now = DateTime.UtcNow;
+        var dateStr = date.ToString("yyyy-MM-dd");
+
+        var existing = await _database.Table<JournalEntry>()
+            .Where(e => e.Date == dateStr)
+            .FirstOrDefaultAsync();
+
+        if (existing != null)
         {
-            return Task.FromResult(_entries.Remove(date));
+            existing.Content = content;
+            existing.PrimaryMood = primaryMood;
+            existing.SecondaryMoods = secondaryMoods;
+            existing.Tags = tags;
+            existing.UpdatedAt = now;
+            await _database.UpdateAsync(existing);
+            return existing;
         }
+
+        var entry = new JournalEntry
+        {
+            DateOnly = date,
+            Content = content,
+            PrimaryMood = primaryMood,
+            SecondaryMoods = secondaryMoods,
+            Tags = tags,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        await _database.InsertAsync(entry);
+        return entry;
+    }
+
+    public async Task<bool> DeleteEntryAsync(DateOnly date)
+    {
+        await InitializeAsync();
+        var dateStr = date.ToString("yyyy-MM-dd");
+        var entry = await _database.Table<JournalEntry>()
+            .Where(e => e.Date == dateStr)
+            .FirstOrDefaultAsync();
+
+        if (entry != null)
+        {
+            await _database.DeleteAsync(entry);
+            return true;
+        }
+        return false;
+    }
+
+    public async Task<List<DateOnly>> GetEntryDatesAsync()
+    {
+        await InitializeAsync();
+        var entries = await _database.Table<JournalEntry>().ToListAsync();
+        return entries.Select(e => e.DateOnly).ToList();
+    }
+
+    public async Task<List<JournalEntry>> GetAllEntriesAsync()
+    {
+        await InitializeAsync();
+        var entries = await _database.Table<JournalEntry>().ToListAsync();
+        return entries.OrderByDescending(e => e.DateOnly).ToList();
+    }
+
+    public async Task<bool> UpdateLockStatusAsync(string entryId, bool isLocked)
+    {
+        await InitializeAsync();
+        var entry = await _database.Table<JournalEntry>()
+            .Where(e => e.Id == entryId)
+            .FirstOrDefaultAsync();
+
+        if (entry != null)
+        {
+            entry.IsLocked = isLocked;
+            entry.UpdatedAt = DateTime.UtcNow;
+            await _database.UpdateAsync(entry);
+            return true;
+        }
+        return false;
     }
 }
