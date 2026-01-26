@@ -43,7 +43,7 @@ public class JournalService
             .FirstOrDefaultAsync();
     }
 
-    public async Task<JournalEntry> UpsertEntryAsync(DateOnly date, string content, string? primaryMood, List<string> secondaryMoods, List<string> tags)
+    public async Task<JournalEntry> UpsertEntryAsync(DateOnly date, string content, string? primaryMood, List<string> secondaryMoods, List<string> tags, bool isLocked = false)
     {
         await InitializeAsync();
         var now = DateTime.UtcNow;
@@ -59,6 +59,7 @@ public class JournalService
             existing.PrimaryMood = primaryMood;
             existing.SecondaryMoods = secondaryMoods;
             existing.Tags = tags;
+            existing.IsLocked = isLocked;
             existing.UpdatedAt = now;
             await _database.UpdateAsync(existing);
             return existing;
@@ -71,6 +72,7 @@ public class JournalService
             PrimaryMood = primaryMood,
             SecondaryMoods = secondaryMoods,
             Tags = tags,
+            IsLocked = isLocked,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -107,22 +109,5 @@ public class JournalService
         await InitializeAsync();
         var entries = await _database.Table<JournalEntry>().ToListAsync();
         return entries.OrderByDescending(e => e.DateOnly).ToList();
-    }
-
-    public async Task<bool> UpdateLockStatusAsync(string entryId, bool isLocked)
-    {
-        await InitializeAsync();
-        var entry = await _database.Table<JournalEntry>()
-            .Where(e => e.Id == entryId)
-            .FirstOrDefaultAsync();
-
-        if (entry != null)
-        {
-            entry.IsLocked = isLocked;
-            entry.UpdatedAt = DateTime.UtcNow;
-            await _database.UpdateAsync(entry);
-            return true;
-        }
-        return false;
     }
 }

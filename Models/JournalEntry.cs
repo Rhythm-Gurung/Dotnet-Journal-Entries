@@ -19,11 +19,11 @@ public class JournalEntry
 
     public string TagsJson { get; set; } = "[]";
 
-    public bool IsLocked { get; set; } = false;
-
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public bool IsLocked { get; set; } = false;
 
     // Helper properties (not stored in DB)
     [Ignore]

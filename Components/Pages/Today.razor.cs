@@ -21,24 +21,19 @@ public partial class Today
     private bool _isBusy;
     private string StatusMessage = string.Empty;
     private JournalEntry? _loaded;
-    private bool ShowUnlockModal;
-    private bool IsEntryLocked;
-    private string? CurrentUnlockedEntryId;
+    private bool IsLocked = false;
+    private bool IsPinSet = false;
+    private bool IsViewLocked = false;
+    private bool ShowPinModal = false;
+    private string EnteredPin = string.Empty;
+    private string PinErrorMessage = string.Empty;
 
-    private bool HasPin => !string.IsNullOrEmpty(Preferences.Get("journal_pin", string.Empty));
+    private const string PIN_KEY = "journal_pin_lock";
 
     protected override async Task OnInitializedAsync()
     {
+        await CheckPinStatus();
         await LoadEntryAsync();
-    }
-
-    protected override void OnAfterRender(bool firstRender)
-    {
-        // Auto-lock when navigating away from the current unlocked entry
-        if (!firstRender && _loaded != null && _loaded.Id != CurrentUnlockedEntryId && !_loaded.IsLocked)
-        {
-            CurrentUnlockedEntryId = null;
-        }
     }
 
     private async Task LoadEntryAsync()
@@ -50,30 +45,31 @@ public partial class Today
         if (entry is not null)
         {
             _loaded = entry;
-            IsEntryLocked = entry.IsLocked && entry.Id != CurrentUnlockedEntryId;
+            IsLocked = entry.IsLocked;
 
-            if (IsEntryLocked)
+            // If entry is locked, show PIN modal and lock view
+            if (entry.IsLocked)
             {
-                // Show locked state
+                IsViewLocked = true;
+                ShowPinModal = true;
                 Content = string.Empty;
                 PrimaryMood = null;
                 SecondaryMoods = new();
                 Tags = new();
-                CreatedAtUtc = null;
-                UpdatedAtUtc = null;
-                HasEntry = true;
-                ShowUnlockModal = true;
             }
             else
             {
+                IsViewLocked = false;
+                ShowPinModal = false;
                 Content = entry.Content;
                 PrimaryMood = MoodCatalog.Get(entry.PrimaryMood);
                 SecondaryMoods = entry.SecondaryMoods.Select(id => MoodCatalog.Get(id)).Where(m => m is not null).Cast<Mood>().ToList();
                 Tags = entry.Tags.ToList();
-                CreatedAtUtc = entry.CreatedAt;
-                UpdatedAtUtc = entry.UpdatedAt;
-                HasEntry = true;
             }
+
+            CreatedAtUtc = entry.CreatedAt;
+            UpdatedAtUtc = entry.UpdatedAt;
+            HasEntry = true;
         }
         else
         {
@@ -84,6 +80,9 @@ public partial class Today
             Tags = new();
             CreatedAtUtc = null;
             UpdatedAtUtc = null;
+            IsLocked = false;
+            IsViewLocked = false;
+            ShowPinModal = false;
             HasEntry = false;
         }
 
@@ -101,16 +100,18 @@ public partial class Today
         _isBusy = true;
         StatusMessage = string.Empty;
 
-        var saved = await JournalService.UpsertEntryAsync(SelectedDate, Content.Trim(), PrimaryMood.Id, SecondaryMoods.Select(m => m.Id).ToList(), Tags.ToList());
+        // Save with current lock state - each entry maintains its own independent lock status
+        var saved = await JournalService.UpsertEntryAsync(SelectedDate, Content.Trim(), PrimaryMood.Id, SecondaryMoods.Select(m => m.Id).ToList(), Tags.ToList(), IsLocked);
         _loaded = saved;
         Content = saved.Content;
         PrimaryMood = MoodCatalog.Get(saved.PrimaryMood);
         SecondaryMoods = saved.SecondaryMoods.Select(id => MoodCatalog.Get(id)).Where(m => m is not null).Cast<Mood>().ToList();
         Tags = saved.Tags.ToList();
+        IsLocked = saved.IsLocked;
         CreatedAtUtc = saved.CreatedAt;
         UpdatedAtUtc = saved.UpdatedAt;
         HasEntry = true;
-        StatusMessage = "Entry saved.";
+        StatusMessage = IsLocked ? "Entry saved and locked." : "Entry saved.";
         _isBusy = false;
     }
 
@@ -128,6 +129,9 @@ public partial class Today
             Tags = new();
             CreatedAtUtc = null;
             UpdatedAtUtc = null;
+            IsLocked = false;
+            IsViewLocked = false;
+            ShowPinModal = false;
             HasEntry = false;
             StatusMessage = "Entry deleted.";
         }
@@ -162,7 +166,8 @@ public partial class Today
             var primaryChanged = !string.Equals(PrimaryMood?.Id, _loaded.PrimaryMood, StringComparison.Ordinal);
             var secondaryChanged = !SecondaryMoods.Select(m => m.Id).SequenceEqual(_loaded.SecondaryMoods);
             var tagsChanged = !Tags.SequenceEqual(_loaded.Tags);
-            return contentChanged || primaryChanged || secondaryChanged || tagsChanged;
+            var lockChanged = IsLocked != _loaded.IsLocked;
+            return contentChanged || primaryChanged || secondaryChanged || tagsChanged || lockChanged;
         }
     }
 
@@ -195,45 +200,108 @@ public partial class Today
         }
     }
 
-    private async Task ToggleLock()
+    private async Task CheckPinStatus()
     {
-        if (_loaded == null) return;
-
-        _isBusy = true;
-        _loaded.IsLocked = !_loaded.IsLocked;
-
-        if (_loaded.IsLocked)
+        try
         {
-            CurrentUnlockedEntryId = null;
+            var storedPin = await SecureStorage.GetAsync(PIN_KEY);
+            IsPinSet = !string.IsNullOrEmpty(storedPin);
         }
-
-        await JournalService.UpdateLockStatusAsync(_loaded.Id, _loaded.IsLocked);
-        IsEntryLocked = _loaded.IsLocked;
-        StatusMessage = _loaded.IsLocked ? "Entry locked" : "Entry unlocked";
-        _isBusy = false;
-    }
-
-    private async Task HandleUnlockSubmit(string pin)
-    {
-        var storedPin = Preferences.Get("journal_pin", string.Empty);
-
-        if (pin == storedPin && _loaded != null)
+        catch (Exception ex)
         {
-            CurrentUnlockedEntryId = _loaded.Id;
-            ShowUnlockModal = false;
-            await LoadEntryAsync(); // Reload to show content
-        }
-        else
-        {
-            StatusMessage = "Incorrect PIN";
-            ShowUnlockModal = false;
-            await ChangeDay(0); // Reload current day
+            Console.WriteLine($"Error checking PIN status: {ex.Message}");
+            IsPinSet = false;
         }
     }
 
-    private async Task HandleUnlockCancel()
+    private void ToggleLock()
     {
-        ShowUnlockModal = false;
-        await ChangeDay(-1); // Navigate away
+        if (!IsPinSet)
+        {
+            StatusMessage = "Please set a PIN in Settings first.";
+            return;
+        }
+
+        IsLocked = !IsLocked;
+        StatusMessage = IsLocked ? "Entry will be locked when saved." : "Lock removed from entry.";
+    }
+
+    private string GetLockButtonClass()
+    {
+        if (IsLocked)
+        {
+            return "flex items-center gap-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50";
+        }
+        return "flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600";
+    }
+
+    private async Task VerifyPin()
+    {
+        PinErrorMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(EnteredPin))
+        {
+            PinErrorMessage = "Please enter your PIN";
+            return;
+        }
+
+        if (EnteredPin.Length != 4)
+        {
+            PinErrorMessage = "PIN must be 4 digits";
+            return;
+        }
+
+        try
+        {
+            var storedPin = await SecureStorage.GetAsync(PIN_KEY);
+
+            if (storedPin == EnteredPin)
+            {
+                // PIN is correct, unlock the view (but entry remains locked)
+                IsViewLocked = false;
+                ShowPinModal = false;
+                EnteredPin = string.Empty;
+                PinErrorMessage = string.Empty;
+
+                // Load the actual content (IsLocked stays true)
+                if (_loaded != null)
+                {
+                    Content = _loaded.Content;
+                    PrimaryMood = MoodCatalog.Get(_loaded.PrimaryMood);
+                    SecondaryMoods = _loaded.SecondaryMoods.Select(id => MoodCatalog.Get(id)).Where(m => m is not null).Cast<Mood>().ToList();
+                    Tags = _loaded.Tags.ToList();
+                    // IsLocked remains true - this is the entry's saved lock status
+                }
+
+                StateHasChanged();
+            }
+            else
+            {
+                PinErrorMessage = "Incorrect PIN. Please try again.";
+                EnteredPin = string.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            PinErrorMessage = $"Error verifying PIN: {ex.Message}";
+        }
+    }
+
+    private void CancelPinEntry()
+    {
+        ShowPinModal = false;
+        EnteredPin = string.Empty;
+        PinErrorMessage = string.Empty;
+
+        // User canceled, navigate to previous day
+        _ = ChangeDay(-1);
+    }
+
+    private void OnPinKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            _ = VerifyPin();
+        }
     }
 }

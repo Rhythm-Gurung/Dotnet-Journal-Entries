@@ -1,5 +1,4 @@
 @page "/settings"
-@using journalstart.Components.Shared
 
 <section class="mt-4 space-y-6">
     <h2 class="text-2xl font-semibold text-slate-800 dark:text-slate-100">Settings</h2>
@@ -63,50 +62,172 @@
     <!-- Security Section -->
     <div class="rounded-lg border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
         <h3 class="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">Security</h3>
-        <p class="mb-6 text-sm text-slate-600 dark:text-slate-300">Set a 4-digit PIN to lock your journal entries</p>
+        <p class="mb-6 text-sm text-slate-600 dark:text-slate-300">Protect your journal with a 4-digit PIN</p>
 
-        @if (HasPin)
+        @if (!isPinSet)
         {
+            <!-- Set PIN Section -->
             <div class="space-y-4">
-                <div class="flex items-center gap-3 rounded-lg bg-green-100 p-4 dark:bg-green-900/20">
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Set PIN (4
+                        digits)</label>
+                    <input type="password" @bind="newPin" @bind:event="oninput" maxlength="4"
+                        placeholder="Enter 4-digit PIN"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
+                </div>
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Confirm PIN</label>
+                    <input type="password" @bind="confirmPin" @bind:event="oninput" maxlength="4" placeholder="Re-enter PIN"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
+                </div>
+
+                @if (!string.IsNullOrEmpty(pinError))
+                {
+                    <div class="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
+                        @pinError
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(pinSuccess))
+                {
+                    <div class="rounded-lg bg-green-50 p-3 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-200">
+                        @pinSuccess
+                    </div>
+                }
+
+                <button @onclick="SetPin"
+                    class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-indigo-500 dark:hover:bg-indigo-600">
+                    Set PIN Lock
+                </button>
+            </div>
+        }
+        else
+        {
+            <!-- PIN Already Set Section -->
+            <div class="space-y-4">
+                <div class="flex items-center gap-3 rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
                     <svg class="h-6 w-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor"
                         viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div class="flex-1">
-                        <p class="text-sm font-medium text-green-800 dark:text-green-300">PIN is set</p>
-                        <p class="text-xs text-green-600 dark:text-green-400">Your journal entries can be locked with a PIN
-                        </p>
+                        <p class="font-medium text-green-800 dark:text-green-200">PIN Lock Active</p>
+                        <p class="text-sm text-green-700 dark:text-green-300">Your journal is protected with a PIN</p>
                     </div>
                 </div>
-                <div class="flex gap-3">
-                    <button @onclick="ShowChangePinModal"
-                        class="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
-                        Change PIN
-                    </button>
-                    <button @onclick="RemovePin"
-                        class="flex-1 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-600 dark:bg-slate-700 dark:text-red-400 dark:hover:bg-red-900/20">
-                        Remove PIN
-                    </button>
-                </div>
+
+                @if (isModifying)
+                {
+                    <!-- Modify PIN Form -->
+                    <div
+                        class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Current PIN</label>
+                            <input type="password" @bind="currentPin" @bind:event="oninput" maxlength="4"
+                                placeholder="Enter current PIN"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">New PIN (4
+                                digits)</label>
+                            <input type="password" @bind="newPin" @bind:event="oninput" maxlength="4"
+                                placeholder="Enter new 4-digit PIN"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Confirm New
+                                PIN</label>
+                            <input type="password" @bind="confirmPin" @bind:event="oninput" maxlength="4"
+                                placeholder="Re-enter new PIN"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(pinError))
+                        {
+                            <div class="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
+                                @pinError
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(pinSuccess))
+                        {
+                            <div class="rounded-lg bg-green-50 p-3 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-200">
+                                @pinSuccess
+                            </div>
+                        }
+
+                        <div class="flex gap-3">
+                            <button @onclick="UpdatePin"
+                                class="flex-1 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-600">
+                                Update PIN
+                            </button>
+                            <button @onclick="CancelModify"
+                                class="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                }
+                else if (isDeleting)
+                {
+                    <!-- Delete PIN Confirmation Form -->
+                    <div
+                        class="space-y-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+                        <div class="flex items-start gap-2 text-red-800 dark:text-red-200">
+                            <svg class="mt-0.5 h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div>
+                                <p class="font-semibold">Delete PIN Lock</p>
+                                <p class="mt-1 text-sm">This will remove the PIN protection from all locked journal entries.
+                                    Enter your PIN to confirm.</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-red-900 dark:text-red-200">Enter PIN to
+                                Confirm</label>
+                            <input type="password" @bind="deletePin" @bind:event="oninput" maxlength="4"
+                                placeholder="Enter your PIN"
+                                class="w-full rounded-lg border border-red-300 bg-white px-4 py-2 text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-red-700 dark:bg-slate-700 dark:text-slate-100" />
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(pinError))
+                        {
+                            <div class="rounded-lg bg-red-100 p-3 text-sm text-red-900 dark:bg-red-900/40 dark:text-red-200">
+                                @pinError
+                            </div>
+                        }
+
+                        <div class="flex gap-3">
+                            <button @onclick="DeletePin"
+                                class="flex-1 rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-red-600 dark:hover:bg-red-700">
+                                Confirm Delete
+                            </button>
+                            <button @onclick="CancelDelete"
+                                class="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <!-- Modify/Delete Buttons -->
+                    <div class="flex gap-3">
+                        <button @onclick="ShowModifyForm"
+                            class="flex-1 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-600">
+                            Modify PIN
+                        </button>
+                        <button @onclick="ShowDeleteForm"
+                            class="flex-1 rounded-lg border border-red-300 bg-white px-4 py-2 font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-red-700 dark:bg-slate-700 dark:text-red-400 dark:hover:bg-red-900/20">
+                            Delete PIN
+                        </button>
+                    </div>
+                }
             </div>
-        }
-        else
-        {
-            <button @onclick="ShowSetPinModal"
-                class="w-full rounded-lg bg-indigo-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600">
-                <div class="flex items-center justify-center gap-2">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    Set PIN
-                </div>
-            </button>
         }
     </div>
 </section>
-
-<PinModal IsVisible="@ShowPinModal" Title="@PinModalTitle" IsSettingPin="true" OnSubmit="HandlePinSubmit"
-    OnCancel="HandlePinCancel" />

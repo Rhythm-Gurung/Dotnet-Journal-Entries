@@ -12,7 +12,7 @@ public partial class Timeline
     private DateTime CurrentMonth { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
     private DateOnly SelectedDate { get; set; } = DateOnly.FromDateTime(DateTime.Now);
     private JournalEntry? SelectedEntry { get; set; }
-    private Dictionary<DateOnly, bool> EntryMap { get; set; } = new();
+    private Dictionary<DateOnly, JournalEntry> EntryMap { get; set; } = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -22,13 +22,13 @@ public partial class Timeline
 
     private async Task LoadEntries()
     {
-        // Get all entry dates from the service
-        var entryDates = await JournalService.GetEntryDatesAsync();
+        // Get all entries from the service
+        var allEntries = await JournalService.GetAllEntriesAsync();
 
         EntryMap.Clear();
-        foreach (var date in entryDates)
+        foreach (var entry in allEntries)
         {
-            EntryMap[date] = true;
+            EntryMap[entry.DateOnly] = entry;
         }
     }
 
@@ -57,7 +57,7 @@ public partial class Timeline
 
     private void NavigateToEdit()
     {
-        Navigation.NavigateTo($"/?date={SelectedDate:yyyy-MM-dd}");
+        Navigation.NavigateTo($"/today?date={SelectedDate:yyyy-MM-dd}");
     }
 
     private List<CalendarDay> CalendarDays
@@ -76,11 +76,15 @@ public partial class Timeline
 
             for (var date = DateOnly.FromDateTime(startDay); date <= DateOnly.FromDateTime(endDay); date = date.AddDays(1))
             {
+                var hasEntry = EntryMap.ContainsKey(date);
+                var isLocked = hasEntry && EntryMap[date].IsLocked;
+
                 days.Add(new CalendarDay
                 {
                     Date = date,
                     IsCurrentMonth = date.Month == CurrentMonth.Month,
-                    HasEntry = EntryMap.ContainsKey(date)
+                    HasEntry = hasEntry,
+                    IsLocked = isLocked
                 });
             }
 
@@ -118,5 +122,6 @@ public partial class Timeline
         public DateOnly Date { get; set; }
         public bool IsCurrentMonth { get; set; }
         public bool HasEntry { get; set; }
+        public bool IsLocked { get; set; }
     }
 }
