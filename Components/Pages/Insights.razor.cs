@@ -46,9 +46,6 @@ public partial class Insights
     private string? SelectedEntryId { get; set; }
     private int CurrentPage { get; set; } = 1;
     private int PageSize { get; set; } = 10;
-    private bool ShowUnlockModal { get; set; }
-    private JournalEntry? PendingUnlockEntry { get; set; }
-    private string? CurrentUnlockedEntryId { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -166,41 +163,8 @@ public partial class Insights
 
     private void SelectEntry(JournalEntry entry)
     {
-        if (entry.IsLocked && entry.Id != CurrentUnlockedEntryId)
-        {
-            PendingUnlockEntry = entry;
-            ShowUnlockModal = true;
-        }
-        else
-        {
-            SelectedEntryId = entry.Id;
-            Navigation.NavigateTo($"/?date={entry.DateOnly:yyyy-MM-dd}");
-        }
-    }
-
-    private void HandleUnlockSubmit(string pin)
-    {
-        var storedPin = Preferences.Get("journal_pin", string.Empty);
-
-        if (pin == storedPin && PendingUnlockEntry != null)
-        {
-            CurrentUnlockedEntryId = PendingUnlockEntry.Id;
-            ShowUnlockModal = false;
-            SelectedEntryId = PendingUnlockEntry.Id;
-            Navigation.NavigateTo($"/?date={PendingUnlockEntry.DateOnly:yyyy-MM-dd}");
-            PendingUnlockEntry = null;
-        }
-        else
-        {
-            ShowUnlockModal = false;
-            PendingUnlockEntry = null;
-        }
-    }
-
-    private void HandleUnlockCancel()
-    {
-        ShowUnlockModal = false;
-        PendingUnlockEntry = null;
+        SelectedEntryId = entry.Id;
+        Navigation.NavigateTo($"/today?date={entry.DateOnly:yyyy-MM-dd}");
     }
 
     private string StripHtml(string html)

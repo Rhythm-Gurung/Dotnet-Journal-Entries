@@ -1,7 +1,70 @@
-@page "/"
+@page "/today"
 @using journalstart.Models
 @using journalstart.Components.Shared
-@using journalstart.Components.Shared
+
+<!-- PIN Verification Modal -->
+@if (ShowPinModal && IsViewLocked)
+{
+    <div
+        style="
+        position: fixed; 
+        inset: 0; z-index: 9999; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        background-color: rgba(0, 0, 0, 0.5); 
+        backdrop-filter: blur(15px);">
+        <div style="margin: 0 1rem; width: 100%; max-width: 28rem;"
+            class="rounded-lg border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+            <div class="mb-4 flex items-center gap-3">
+                <div class="rounded-full bg-amber-100 p-3 dark:bg-amber-900/30">
+                    <svg class="h-6 w-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Entry Locked</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-300">Enter your PIN to view this journal entry</p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Enter PIN</label>
+                    <input type="password" @bind="EnteredPin" @bind:event="oninput" @onkeydown="OnPinKeyDown" maxlength="4"
+                        placeholder="4-digit PIN" autofocus
+                        class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-center text-lg tracking-widest text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" />
+                </div>
+
+                @if (!string.IsNullOrEmpty(PinErrorMessage))
+                {
+                    <div class="rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-200">
+                        <div class="flex items-center gap-2">
+                            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            <span>@PinErrorMessage</span>
+                        </div>
+                    </div>
+                }
+
+                <div class="flex gap-3">
+                    <button @onclick="VerifyPin"
+                        class="flex-1 rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-600">
+                        Unlock
+                    </button>
+                    <button @onclick="CancelPinEntry"
+                        class="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-3 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <section class="mt-4 space-y-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
     <div class="flex flex-col gap-3">
@@ -44,43 +107,101 @@
         }
     </div>
 
-    <div class="space-y-4">
-        <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-            <MarkdownEditor @bind-Value="Content" Disabled="@_isBusy" />
-        </div>
-
-        <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-            <MoodSelector @bind-PrimaryMood="PrimaryMood" @bind-SecondaryMoods="SecondaryMoods" />
-        </div>
-
-        <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-            <label class="text-sm font-medium text-slate-600 dark:text-slate-300">Tags</label>
-            <div class="mt-2 flex gap-2">
-                <input
-                    class="flex-1 rounded border border-slate-300 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
-                    placeholder="Add a tag..." @bind="NewTag" @bind:event="oninput" @onkeydown="OnTagKeyDown" />
-                <button
-                    class="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 disabled:bg-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700"
-                    @onclick="AddTag" disabled="@string.IsNullOrWhiteSpace(NewTag)">Add</button>
-            </div>
-            <div class="mt-2 flex flex-wrap gap-1">
-                @if (!Tags.Any())
-                {
-                    <span class="text-xs text-slate-400 dark:text-slate-500">No tags yet</span>
-                }
-                @foreach (var tag in Tags)
-                {
-                    <span
-                        class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                        @tag
-                        <button
-                            class="ml-1 text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200"
-                            @onclick="() => RemoveTag(tag)">×</button>
-                    </span>
-                }
+    @if (IsViewLocked)
+    {
+        <!-- Locked Content Placeholder -->
+        <div class="space-y-4">
+            <div
+                class="rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 p-12 text-center dark:border-amber-700 dark:bg-amber-900/20">
+                <svg class="mx-auto h-16 w-16 text-amber-400 dark:text-amber-500" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
             </div>
         </div>
-    </div>
+    }
+    else
+    {
+        <!-- Normal Content View -->
+        <div class="space-y-4">
+            <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                <MarkdownEditor @bind-Value="Content" Disabled="@_isBusy" />
+            </div>
+
+            <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                <MoodSelector @bind-PrimaryMood="PrimaryMood" @bind-SecondaryMoods="SecondaryMoods" />
+            </div>
+
+            <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                <div class="mb-4 flex items-center justify-between">
+                    <label class="text-sm font-medium text-slate-600 dark:text-slate-300">Security</label>
+                    <button @onclick="ToggleLock" class="@GetLockButtonClass()" disabled="@_isBusy">
+                        @if (IsLocked)
+                        {
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            <span>Locked</span>
+                        }
+                        else
+                        {
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                            </svg>
+                            <span>Unlocked</span>
+                        }
+                    </button>
+                </div>
+                @if (IsLocked && !IsPinSet)
+                {
+                    <div
+                        class="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                        <div class="flex items-start gap-2">
+                            <svg class="mt-0.5 h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div>
+                                <p class="font-medium">No PIN set</p>
+                                <p class="mt-1">Please set a PIN in Settings to enable lock protection.</p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                <label class="text-sm font-medium text-slate-600 dark:text-slate-300">Tags</label>
+                <div class="mt-2 flex gap-2">
+                    <input
+                        class="flex-1 rounded border border-slate-300 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-400"
+                        placeholder="Add a tag..." @bind="NewTag" @bind:event="oninput" @onkeydown="OnTagKeyDown" />
+                    <button
+                        class="rounded bg-blue-500 px-3 py-1 text-sm text-white hover:bg-blue-600 disabled:bg-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700"
+                        @onclick="AddTag" disabled="@string.IsNullOrWhiteSpace(NewTag)">Add</button>
+                </div>
+                <div class="mt-2 flex flex-wrap gap-1">
+                    @if (!Tags.Any())
+                    {
+                        <span class="text-xs text-slate-400 dark:text-slate-500">No tags yet</span>
+                    }
+                    @foreach (var tag in Tags)
+                    {
+                        <span
+                            class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                            @tag
+                            <button
+                                class="ml-1 text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200"
+                                @onclick="() => RemoveTag(tag)">×</button>
+                        </span>
+                    }
+                </div>
+            </div>
+        </div>
+    }
 
     <div class="flex gap-2">
         <button
@@ -88,31 +209,6 @@
             @onclick="SaveAsync" disabled="@(_isBusy || !CanSave)">
             @(HasEntry ? "Update" : "Save")
         </button>
-        @if (HasEntry && HasPin)
-        {
-            <button
-                class="rounded border border-slate-300 px-4 py-2 text-sm transition hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700 @(IsEntryLocked ? "text-amber-600 dark:text-amber-400" : "text-slate-600 dark:text-slate-400")"
-                @onclick="ToggleLock" disabled="@_isBusy">
-                <div class="flex items-center gap-2">
-                    @if (IsEntryLocked)
-                    {
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        <span>Locked</span>
-                    }
-                    else
-                    {
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                        </svg>
-                        <span>Unlocked</span>
-                    }
-                </div>
-            </button>
-        }
         @if (HasEntry)
         {
             <button
@@ -127,6 +223,3 @@
         }
     </div>
 </section>
-
-<PinModal IsVisible="@ShowUnlockModal" Title="Enter PIN to View Entry" IsSettingPin="false"
-    OnSubmit="HandleUnlockSubmit" OnCancel="HandleUnlockCancel" />

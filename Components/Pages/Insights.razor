@@ -1,7 +1,6 @@
 @page "/insights"
 @using journalstart.Models
 @using journalstart.Components.Shared
-@using journalstart.Components.Shared
 
 <section class="mt-4 space-y-4">
     <!-- Search & Filter Bar -->
@@ -114,6 +113,7 @@
             @foreach (var entry in PaginatedEntries)
             {
                 var isSelected = SelectedEntryId == entry.Id;
+
                 <button @onclick="() => SelectEntry(entry)"
                     class="w-full rounded-lg border bg-white p-4 text-left transition hover:shadow-md dark:bg-slate-800 dark:hover:shadow-xl @(isSelected ? "ring-2 ring-blue-500 border-blue-500 dark:ring-blue-400 dark:border-blue-400" : "border-slate-200 dark:border-slate-700")">
                     <div class="flex items-start gap-4">
@@ -126,26 +126,27 @@
                         <!-- Content -->
                         <div class="min-w-0 flex-1">
                             <div class="mb-1 flex items-center gap-2">
-                                @if (entry.IsLocked && entry.Id != CurrentUnlockedEntryId)
+                                @if (entry.IsLocked)
                                 {
-                                    <svg class="h-4 w-4 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor"
+                                    <!-- Locked Entry Indicator -->
+                                    <svg class="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor"
                                         viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                     </svg>
-                                    <span class="text-sm font-medium text-amber-600 dark:text-amber-400">Locked</span>
+                                    <span class="text-sm font-medium text-amber-700 dark:text-amber-400">Locked Entry</span>
                                 }
-                                else if (!string.IsNullOrEmpty(entry.PrimaryMood))
+                                else
                                 {
-                                    var mood = MoodCatalog.Get(entry.PrimaryMood);
-                                    if (mood != null)
+                                    @if (!string.IsNullOrEmpty(entry.PrimaryMood))
                                     {
-                                        <span class="text-lg">@mood.Emoji</span>
-                                        <span class="text-sm font-medium dark:text-slate-200">@mood.Name</span>
+                                        var mood = MoodCatalog.Get(entry.PrimaryMood);
+                                        if (mood != null)
+                                        {
+                                            <span class="text-lg">@mood.Emoji</span>
+                                            <span class="text-sm font-medium dark:text-slate-200">@mood.Name</span>
+                                        }
                                     }
-                                }
-                                @if (!entry.IsLocked || entry.Id == CurrentUnlockedEntryId)
-                                {
                                     @if (entry.SecondaryMoods.Any())
                                     {
                                         <span class="text-slate-400 dark:text-slate-500">
@@ -155,22 +156,19 @@
                                 }
                             </div>
 
-                            @if (entry.IsLocked && entry.Id != CurrentUnlockedEntryId)
+                            @if (entry.IsLocked)
                             {
-                                <div class="flex items-center gap-2 text-sm text-slate-400 dark:text-slate-500">
-                                    <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                    </svg>
-                                    <span>Tap to unlock and view content</span>
-                                </div>
+                                <!-- Locked Content Placeholder -->
+                                <p class="text-sm italic text-slate-400 dark:text-slate-500">This entry is locked. Enter PIN to view
+                                    content.</p>
                             }
                             else
                             {
+                                <!-- Normal Content Display -->
                                 <p class="line-clamp-2 text-sm text-slate-500 dark:text-slate-400">@StripHtml(entry.Content)</p>
                             }
 
-                            @if ((!entry.IsLocked || entry.Id == CurrentUnlockedEntryId) && entry.Tags.Any())
+                            @if (entry.Tags.Any() && !entry.IsLocked)
                             {
                                 <div class="mt-2 flex flex-wrap gap-1">
                                     @foreach (var tag in entry.Tags.Take(3))
@@ -187,7 +185,22 @@
                         </div>
 
                         <!-- Word count -->
-                        <div class="text-xs text-slate-400 dark:text-slate-500">@GetWordCount(entry.Content) words</div>
+                        <div class="text-right">
+                            @if (entry.IsLocked)
+                            {
+                                <div class="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                    <span>Locked</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-xs text-slate-400 dark:text-slate-500">@GetWordCount(entry.Content) words</span>
+                            }
+                        </div>
                     </div>
                 </button>
             }
@@ -224,6 +237,3 @@
         }
     </div>
 </section>
-
-<PinModal IsVisible="@ShowUnlockModal" Title="Enter PIN to Unlock Entry" IsSettingPin="false"
-    OnSubmit="HandleUnlockSubmit" OnCancel="HandleUnlockCancel" />
