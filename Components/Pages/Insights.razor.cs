@@ -9,10 +9,23 @@ public partial class Insights
 {
     [Inject] private JournalService JournalService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+    [Inject] private PdfService PdfService { get; set; } = default!;
 
     private List<JournalEntry> AllEntries { get; set; } = new();
     private List<JournalEntry> FilteredEntries { get; set; } = new();
     private List<string> AllTags { get; set; } = new();
+
+    // Selection mode for PDF export
+    private bool IsSelectionMode { get; set; } = false;
+    private HashSet<string> SelectedEntryIds { get; set; } = new();
+    private bool IsExporting { get; set; } = false;
+    private string ExportMessage { get; set; } = string.Empty;
+
+    // PIN verification for locked entries
+    private bool ShowPinModalForExport { get; set; } = false;
+    private string ExportPin { get; set; } = string.Empty;
+    private string PinErrorMessage { get; set; } = string.Empty;
+    private const string PIN_KEY = "journal_pin_lock";
 
     private bool ShowFilters { get; set; }
 
@@ -163,8 +176,161 @@ public partial class Insights
 
     private void SelectEntry(JournalEntry entry)
     {
-        SelectedEntryId = entry.Id;
-        Navigation.NavigateTo($"/today?date={entry.DateOnly:yyyy-MM-dd}");
+        if (IsSelectionMode)
+        {
+            // Toggle selection in selection mode
+            if (SelectedEntryIds.Contains(entry.Id))
+                SelectedEntryIds.Remove(entry.Id);
+            else
+                SelectedEntryIds.Add(entry.Id);
+        }
+        else
+        {
+            // Navigate to entry in normal mode
+            SelectedEntryId = entry.Id;
+            Navigation.NavigateTo($"/today?date={entry.DateOnly:yyyy-MM-dd}");
+        }
+    }
+
+    private void ToggleSelectionMode()
+    {
+        IsSelectionMode = !IsSelectionMode;
+        if (!IsSelectionMode)
+        {
+            SelectedEntryIds.Clear();
+        }
+    }
+
+    private void SelectAllEntries()
+    {
+        SelectedEntryIds.Clear();
+        foreach (var entry in FilteredEntries)
+        {
+            SelectedEntryIds.Add(entry.Id);
+        }
+    }
+
+    private void DeselectAllEntries()
+    {
+        SelectedEntryIds.Clear();
+    }
+
+    private async Task ExportSelectedToPdf()
+    {
+        if (!SelectedEntryIds.Any())
+        {
+            ExportMessage = "Please select at least one entry to export";
+            return;
+        }
+
+        // Get selected entries
+        var selectedEntries = AllEntries
+            .Where(e => SelectedEntryIds.Contains(e.Id))
+            .OrderByDescending(e => e.DateOnly)
+            .ToList();
+
+        // Check if any selected entries are locked
+        var hasLockedEntries = selectedEntries.Any(e => e.IsLocked);
+
+        if (hasLockedEntries)
+        {
+            // Show PIN modal for locked entries
+            ShowPinModalForExport = true;
+            PinErrorMessage = string.Empty;
+            ExportPin = string.Empty;
+            return;
+        }
+
+        // Export directly if no locked entries
+        await PerformExport(selectedEntries);
+    }
+
+    private async Task VerifyPinAndExport()
+    {
+        PinErrorMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(ExportPin))
+        {
+            PinErrorMessage = "Please enter your PIN";
+            return;
+        }
+
+        if (ExportPin.Length != 4)
+        {
+            PinErrorMessage = "PIN must be 4 digits";
+            return;
+        }
+
+        try
+        {
+            var storedPin = await SecureStorage.GetAsync(PIN_KEY);
+
+            if (storedPin == ExportPin)
+            {
+                // PIN is correct, proceed with export
+                ShowPinModalForExport = false;
+                ExportPin = string.Empty;
+                PinErrorMessage = string.Empty;
+
+                var selectedEntries = AllEntries
+                    .Where(e => SelectedEntryIds.Contains(e.Id))
+                    .OrderByDescending(e => e.DateOnly)
+                    .ToList();
+
+                await PerformExport(selectedEntries);
+            }
+            else
+            {
+                PinErrorMessage = "Incorrect PIN. Please try again.";
+                ExportPin = string.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            PinErrorMessage = $"Error verifying PIN: {ex.Message}";
+        }
+    }
+
+    private void CancelPinForExport()
+    {
+        ShowPinModalForExport = false;
+        ExportPin = string.Empty;
+        PinErrorMessage = string.Empty;
+    }
+
+    private async Task PerformExport(List<JournalEntry> selectedEntries)
+    {
+        IsExporting = true;
+        ExportMessage = string.Empty;
+
+        try
+        {
+            // Generate PDF - showLockedContent = true since PIN was verified if needed
+            var pdfBytes = await PdfService.GenerateJournalPdfAsync(
+                selectedEntries,
+                $"Journal Export - {DateTime.Now:yyyy-MM-dd}",
+                showLockedContent: true
+            );
+
+            // Save PDF
+            var filename = $"JournalExport_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            var savedPath = await PdfService.SavePdfToDownloadsAsync(pdfBytes, filename);
+
+            ExportMessage = $"✓ Successfully exported {selectedEntries.Count} entries!";
+
+            // Exit selection mode
+            IsSelectionMode = false;
+            SelectedEntryIds.Clear();
+        }
+        catch (Exception ex)
+        {
+            ExportMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            IsExporting = false;
+            StateHasChanged();
+        }
     }
 
     private string StripHtml(string html)

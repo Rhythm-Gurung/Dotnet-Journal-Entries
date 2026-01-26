@@ -51,7 +51,7 @@ public partial class Today
         // Handle date changes from navigation
         if (!string.IsNullOrEmpty(DateQuery) && DateOnly.TryParse(DateQuery, out var parsedDate))
         {
-            if (SelectedDate != parsedDate)
+            if (SelectedDate != parsedDate) 
             {
                 SelectedDate = parsedDate;
                 await LoadEntryAsync();
