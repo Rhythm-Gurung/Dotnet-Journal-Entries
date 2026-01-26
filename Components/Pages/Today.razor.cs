@@ -8,6 +8,10 @@ namespace journalstart.Components.Pages;
 public partial class Today
 {
     [Inject] private JournalService JournalService { get; set; } = default!;
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+
+    [SupplyParameterFromQuery(Name = "date")]
+    public string? DateQuery { get; set; }
 
     private DateOnly SelectedDate = DateOnly.FromDateTime(DateTime.Now);
     private string Content = string.Empty;
@@ -32,8 +36,27 @@ public partial class Today
 
     protected override async Task OnInitializedAsync()
     {
+        // Parse date from query parameter if provided
+        if (!string.IsNullOrEmpty(DateQuery) && DateOnly.TryParse(DateQuery, out var parsedDate))
+        {
+            SelectedDate = parsedDate;
+        }
+
         await CheckPinStatus();
         await LoadEntryAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Handle date changes from navigation
+        if (!string.IsNullOrEmpty(DateQuery) && DateOnly.TryParse(DateQuery, out var parsedDate))
+        {
+            if (SelectedDate != parsedDate)
+            {
+                SelectedDate = parsedDate;
+                await LoadEntryAsync();
+            }
+        }
     }
 
     private async Task LoadEntryAsync()
