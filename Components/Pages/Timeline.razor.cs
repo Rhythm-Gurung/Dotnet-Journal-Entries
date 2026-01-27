@@ -43,6 +43,16 @@ public partial class Timeline
         await LoadSelectedEntry();
     }
 
+    private bool IsToday(DateOnly date) => date == DateOnly.FromDateTime(DateTime.Now);
+
+    private bool IsPastDate => SelectedDate < DateOnly.FromDateTime(DateTime.Now);
+
+    // Allow editing if: (1) It's today, OR (2) It's a past date with an existing entry
+    private bool CanEditDate => IsToday(SelectedDate) || (IsPastDate && SelectedEntry != null);
+
+    // Only allow creating new entries for today
+    private bool CanCreateEntry => IsToday(SelectedDate);
+
     private async Task PreviousMonth()
     {
         CurrentMonth = CurrentMonth.AddMonths(-1);

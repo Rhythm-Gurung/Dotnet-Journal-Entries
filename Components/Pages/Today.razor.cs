@@ -19,6 +19,10 @@ public partial class Today
     private List<Mood> SecondaryMoods = new();
     private List<string> Tags = new();
     private string NewTag = string.Empty;
+    private readonly string[] PredefinedTags = new[]
+    {
+        "Work","Personal","Health","Fitness","Family","Finance","Study","Travel","Gratitude","Idea","Project","Meeting","Sleep","Food","Hobby"
+    };
     private DateTime? CreatedAtUtc;
     private DateTime? UpdatedAtUtc;
     private bool HasEntry;
@@ -51,7 +55,7 @@ public partial class Today
         // Handle date changes from navigation
         if (!string.IsNullOrEmpty(DateQuery) && DateOnly.TryParse(DateQuery, out var parsedDate))
         {
-            if (SelectedDate != parsedDate) 
+            if (SelectedDate != parsedDate)
             {
                 SelectedDate = parsedDate;
                 await LoadEntryAsync();
@@ -114,6 +118,23 @@ public partial class Today
 
     private async Task SaveAsync()
     {
+        // Check if creating a new entry for a past date
+        if (!HasEntry && !CanCreateEntry)
+        {
+            if (IsPastDate)
+                StatusMessage = "You cannot create new entries for past dates. Only today's entries can be created.";
+            else if (IsFutureDate)
+                StatusMessage = "You cannot create entries for future dates.";
+            return;
+        }
+
+        // Check if editing an entry for a non-editable date
+        if (!CanEditDate)
+        {
+            StatusMessage = "You can only edit entries for today or existing past entries.";
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(Content) || PrimaryMood is null)
         {
             StatusMessage = "Add text and select a primary mood before saving.";
@@ -140,6 +161,16 @@ public partial class Today
 
     private async Task DeleteAsync()
     {
+        // Check if user is trying to delete a non-today date entry
+        if (!CanEditDate)
+        {
+            if (IsPastDate)
+                StatusMessage = "You can only delete today's entry. Past entries cannot be deleted.";
+            else if (IsFutureDate)
+                StatusMessage = "Future entries cannot be deleted.";
+            return;
+        }
+
         _isBusy = true;
         StatusMessage = string.Empty;
 
@@ -174,7 +205,18 @@ public partial class Today
 
     private bool IsToday => SelectedDate == DateOnly.FromDateTime(DateTime.Now);
 
-    private bool CanSave => !string.IsNullOrWhiteSpace(Content) && PrimaryMood is not null && HasChanges;
+    private bool IsPastDate => SelectedDate < DateOnly.FromDateTime(DateTime.Now);
+
+    private bool IsFutureDate => SelectedDate > DateOnly.FromDateTime(DateTime.Now);
+
+    // Allow editing if: (1) It's today, OR (2) It's a past date with an existing entry
+    // Prevent: Creating new entries for past dates, or any future date operations
+    private bool CanEditDate => IsToday || (IsPastDate && HasEntry);
+
+    // Prevent creating new entries for past dates
+    private bool CanCreateEntry => IsToday;
+
+    private bool CanSave => !string.IsNullOrWhiteSpace(Content) && PrimaryMood is not null && HasChanges && CanEditDate;
 
     private bool HasChanges
     {
@@ -210,6 +252,20 @@ public partial class Today
         NewTag = string.Empty;
     }
 
+    private void AddPredefinedTag(string tag)
+    {
+        var trimmed = (tag ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return;
+        }
+
+        if (!Tags.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+        {
+            Tags.Add(trimmed);
+        }
+    }
+
     private void RemoveTag(string tag)
     {
         Tags.Remove(tag);
@@ -221,6 +277,16 @@ public partial class Today
         {
             AddTag();
         }
+    }
+
+    private string GetPresetTagClass(string tag)
+    {
+        var isSelected = Tags.Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase));
+        if (isSelected)
+        {
+            return "rounded bg-slate-200 px-2 py-1 text-xs text-slate-700 cursor-default dark:bg-slate-700 dark:text-slate-300";
+        }
+        return "rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-300";
     }
 
     private async Task CheckPinStatus()

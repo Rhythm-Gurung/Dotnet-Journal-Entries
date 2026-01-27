@@ -17,7 +17,7 @@
             {
                 var isActive = _activeCategory == category;
                 <button type="button" class="@GetCategoryTabClass(category, isActive)"
-                    @onclick="() => _activeCategory = category">
+                    @onclick="() => _activeCategory = category" disabled="@Disabled">
                     <span class="tab-emoji">@GetCategoryEmoji(category)</span>
                     <span class="tab-label">@category.ToString()</span>
                 </button>
@@ -31,8 +31,8 @@
                 @foreach (var mood in moods)
                 {
                     var isSelected = PrimaryMood?.Id == mood.Id;
-                    <button type="button" class="@GetMoodButtonClass(mood, isSelected)"
-                        @onclick="() => SelectPrimaryMood(mood)">
+                    <button type="button" class="@GetMoodButtonClass(mood, isSelected)" @onclick="() => SelectPrimaryMood(mood)"
+                        disabled="@Disabled">
                         <span class="mood-emoji">@mood.Emoji</span>
                         <span class="mood-name">@mood.Name</span>
                     </button>
@@ -57,7 +57,7 @@
                 @foreach (var mood in MoodCatalog.All.Where(m => m.Id != PrimaryMood?.Id))
                 {
                     var isSelected = SecondaryMoods.Any(m => m.Id == mood.Id);
-                    var isDisabled = SecondaryMoods.Count >= 2 && !isSelected;
+                    var isDisabled = Disabled || (SecondaryMoods.Count >= 2 && !isSelected);
                     <button type="button" class="@GetSecondaryChipClass(mood, isSelected, isDisabled)" disabled="@isDisabled"
                         @onclick="() => ToggleSecondaryMood(mood)">
                         <span class="chip-emoji">@mood.Emoji</span>
@@ -107,10 +107,15 @@
     [Parameter]
     public EventCallback<List<Mood>> SecondaryMoodsChanged { get; set; }
 
+    [Parameter]
+    public bool Disabled { get; set; } = false;
+
     private MoodCategory _activeCategory = MoodCategory.Positive;
 
     private async Task SelectPrimaryMood(Mood mood)
     {
+        if (Disabled) return;
+
         PrimaryMood = mood;
         _activeCategory = mood.Category;
         await PrimaryMoodChanged.InvokeAsync(mood);
@@ -124,6 +129,7 @@
 
     private async Task ToggleSecondaryMood(Mood mood)
     {
+        if (Disabled) return;
         if (mood.Id == PrimaryMood?.Id) return;
 
         if (SecondaryMoods.Any(m => m.Id == mood.Id))
