@@ -19,6 +19,10 @@ public partial class Today
     private List<Mood> SecondaryMoods = new();
     private List<string> Tags = new();
     private string NewTag = string.Empty;
+    private readonly string[] PredefinedTags = new[]
+    {
+        "Work","Personal","Health","Fitness","Family","Finance","Study","Travel","Gratitude","Idea","Project","Meeting","Sleep","Food","Hobby"
+    };
     private DateTime? CreatedAtUtc;
     private DateTime? UpdatedAtUtc;
     private bool HasEntry;
@@ -248,6 +252,20 @@ public partial class Today
         NewTag = string.Empty;
     }
 
+    private void AddPredefinedTag(string tag)
+    {
+        var trimmed = (tag ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return;
+        }
+
+        if (!Tags.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+        {
+            Tags.Add(trimmed);
+        }
+    }
+
     private void RemoveTag(string tag)
     {
         Tags.Remove(tag);
@@ -259,6 +277,16 @@ public partial class Today
         {
             AddTag();
         }
+    }
+
+    private string GetPresetTagClass(string tag)
+    {
+        var isSelected = Tags.Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase));
+        if (isSelected)
+        {
+            return "rounded bg-slate-200 px-2 py-1 text-xs text-slate-700 cursor-default dark:bg-slate-700 dark:text-slate-300";
+        }
+        return "rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-300";
     }
 
     private async Task CheckPinStatus()
